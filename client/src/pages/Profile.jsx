@@ -3,6 +3,7 @@ import { usePrivyAuth } from "../context/PrivyAuthContext";
 import { usePrivy } from '@privy-io/react-auth';
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
+import ConnectWallet from "../components/ConnectWallet";
 import {
   Dialog,
   DialogContent,
@@ -210,101 +211,91 @@ const Profile = () => {
 
   if (!authenticated) {
     return (
-      <div
-        className="flex items-center justify-center"
-        style={{ height: "calc(100vh - 6rem)" }}
-      >
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl text-center space-y-6">
-          <User className="w-16 h-16 text-red-400 mx-auto" />
-          <h1 className="text-3xl font-bold text-white">Connect Your Wallet</h1>
-          <p className="text-red-200">
-            Please connect your wallet to view your profile
-          </p>
-          <button
-            onClick={connectWallet}
-            className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl text-white font-medium hover:opacity-90 transition-opacity"
-          >
-            Connect Wallet
-          </button>
-        </div>
-      </div>
+      <ConnectWallet
+        connectWallet={connectWallet}
+        icon={User}
+        title="Connect Your Wallet"
+        description="Please connect your wallet to view your profile"
+      />
     );
   }
 
   return (
-    <div className="x-4 md:px-24 py-12">
+    <div className="px-4 md:px-24 py-6 md:py-12">
       <div className="max-w-lg mx-auto">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg md:rounded-2xl p-4 md:p-6 border border-white/20 shadow-xl">
           {/* Compact Header */}
-          <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/10">
-            <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-white/10">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-white">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg md:text-xl font-bold text-white truncate">
                 {getUserDisplayName()}
               </h2>
-              <p className="text-red-200 text-sm">
+              <p className="text-red-200 text-xs md:text-sm truncate">
                 {getUserDisplayType()}
               </p>
             </div>
             {user?.google && (
-              <span className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-white text-xs">
-                Google Account
+              <span className="px-2 md:px-3 py-1 bg-white/10 border border-white/20 rounded-full text-white text-xs">
+                Google
               </span>
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Wallet Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Wallet className="w-5 h-5" />
+            <div className="space-y-3 md:space-y-4">
+              <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 md:w-5 md:h-5" />
                 Wallet Information
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+              <div className="space-y-3 md:space-y-4">
+                <div>
                   <label className="text-red-200 text-xs font-medium">Wallet Address</label>
                   <div className="flex items-center gap-2 mt-1">
                     <input
                       value={walletAddress || ''}
                       readOnly
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs font-mono"
+                      className="w-full px-2 md:px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs font-mono"
                     />
                     <button
                       onClick={handleCopyAddress}
-                      className="px-2 py-2 bg-white/10 border border-white/20 rounded-lg text-white hover:bg-white/20 transition-all duration-200"
+                      className="px-2 py-2 bg-white/10 border border-white/20 rounded-lg text-white hover:bg-white/20 transition-all duration-200 flex-shrink-0"
                     >
                       <Copy className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-red-200 text-xs font-medium">Network</label>
-                  <input
-                    value="Somnia Testnet"
-                    readOnly
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs mt-1"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  <div>
+                    <label className="text-red-200 text-xs font-medium">Network</label>
+                    <input
+                      value="Somnia Testnet"
+                      readOnly
+                      className="w-full px-2 md:px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs mt-1"
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-red-200 text-xs font-medium">Wallet Type</label>
-                  <input
-                    value={walletInfo?.walletType === "privy" ? "Embedded Wallet" : "External Wallet"}
-                    readOnly
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs mt-1"
-                  />
+                  <div>
+                    <label className="text-red-200 text-xs font-medium">Wallet Type</label>
+                    <input
+                      value={walletInfo?.walletType === "privy" ? "Embedded" : "External"}
+                      readOnly
+                      className="w-full px-2 md:px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs mt-1"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Balance & Actions */}
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-white">Balance & Actions</h3>
+                <h3 className="text-base md:text-lg font-bold text-white">Balance & Actions</h3>
                 <button
                   onClick={fetchBalance}
                   disabled={loading}
@@ -319,9 +310,9 @@ const Profile = () => {
               </div>
 
               {/* Balance Display */}
-              <div className="text-center p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="text-center p-3 md:p-4 bg-white/5 rounded-lg border border-white/10">
                 <p className="text-red-200 text-xs mb-1">Current Balance</p>
-                <p className="text-xl font-bold text-white">
+                <p className="text-lg md:text-xl font-bold text-white">
                   {loading ? (
                     <CircularProgress size={18} style={{ color: 'white' }} />
                   ) : (
@@ -332,11 +323,11 @@ const Profile = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-2">
+            <div className="space-y-2 md:space-y-3">
               <button
                 onClick={() => setWithdrawDialogOpen(true)}
                 disabled={parseFloat(balance) <= 0}
-                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 md:py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
               >
                 <Send className="w-4 h-4" />
                 Withdraw
@@ -344,7 +335,7 @@ const Profile = () => {
 
               <button
                 onClick={() => setExportDialogOpen(true)}
-                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white font-medium hover:bg-white/20 transition-all duration-200 text-sm"
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg text-white font-medium hover:bg-white/20 transition-all duration-200 text-sm md:text-base"
               >
                 <ExternalLink className="w-4 h-4" />
                 Export
@@ -352,7 +343,7 @@ const Profile = () => {
 
               <button
                 onClick={disconnectWallet}
-                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-all duration-200 text-sm"
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 md:py-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-all duration-200 text-sm md:text-base"
               >
                 <LogOut className="w-4 h-4" />
                 Disconnect
@@ -372,20 +363,22 @@ const Profile = () => {
               backgroundColor: "#7f1d1d",
               borderRadius: "1rem",
               border: "1px solid rgba(255, 255, 255, 0.1)",
+              margin: "16px",
+              maxHeight: "calc(100vh - 32px)",
             },
           }}
         >
-          <DialogTitle className="text-white flex items-center gap-2">
-            <Send className="w-6 h-6" />
+          <DialogTitle className="text-white flex items-center gap-2 text-lg md:text-xl px-4 md:px-6 py-3 md:py-4">
+            <Send className="w-5 h-5 md:w-6 md:h-6" />
             Withdraw STT Tokens
           </DialogTitle>
-          <DialogContent className="space-y-6">
-            <p className="text-red-200 text-sm">
+          <DialogContent className="space-y-4 md:space-y-6 px-4 md:px-6">
+            <p className="text-red-200 text-xs md:text-sm">
               Send your STT tokens to an external wallet address
             </p>
 
-            <div className="space-y-4">
-              <label className="text-white text-sm font-medium">Amount (STT)</label>
+            <div className="space-y-3 md:space-y-4">
+              <label className="text-white text-xs md:text-sm font-medium">Amount (STT)</label>
 
               {/* Amount Input */}
               <input
@@ -396,7 +389,7 @@ const Profile = () => {
                 min="0"
                 max={balance}
                 placeholder="0.0000000"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+                className="w-full px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 text-sm md:text-base"
               />
 
               {/* Amount Slider */}
@@ -416,80 +409,82 @@ const Profile = () => {
 
                 {/* Slider Labels */}
                 <div className="flex justify-between text-xs text-red-200">
-                  <span>0 STT</span>
-                  <span className="font-medium">
-                    {withdrawAmount ? `${parseFloat(withdrawAmount).toFixed(7)} STT` : '0.0000000 STT'}
+                  <span className="hidden sm:inline">0 STT</span>
+                  <span className="sm:hidden">0</span>
+                  <span className="font-medium text-center px-2">
+                    {withdrawAmount ? `${parseFloat(withdrawAmount).toFixed(4)} STT` : '0.0000 STT'}
                   </span>
-                  <span>{parseFloat(balance).toFixed(7)} STT</span>
+                  <span className="hidden sm:inline">{parseFloat(balance).toFixed(4)} STT</span>
+                  <span className="sm:hidden">{parseFloat(balance).toFixed(2)}</span>
                 </div>
               </div>
 
               {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1 md:gap-2">
                 <button
                   type="button"
                   onClick={() => setWithdrawAmount((parseFloat(balance) * 0.25).toFixed(7))}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
+                  className="px-2 md:px-3 py-1 md:py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
                 >
                   25%
                 </button>
                 <button
                   type="button"
                   onClick={() => setWithdrawAmount((parseFloat(balance) * 0.5).toFixed(7))}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
+                  className="px-2 md:px-3 py-1 md:py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
                 >
                   50%
                 </button>
                 <button
                   type="button"
                   onClick={() => setWithdrawAmount((parseFloat(balance) * 0.75).toFixed(7))}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
+                  className="px-2 md:px-3 py-1 md:py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs hover:bg-white/20 transition-all duration-200"
                 >
                   75%
                 </button>
                 <button
                   type="button"
                   onClick={() => setWithdrawAmount(parseFloat(balance).toFixed(7))}
-                  className="px-3 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg text-white text-xs hover:opacity-90 transition-opacity"
+                  className="px-2 md:px-3 py-1 md:py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg text-white text-xs hover:opacity-90 transition-opacity"
                 >
                   MAX
                 </button>
               </div>
 
-              <p className="text-red-200 text-xs">Available: {parseFloat(balance).toFixed(7)} STT</p>
+              <p className="text-red-200 text-xs">Available: {parseFloat(balance).toFixed(4)} STT</p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-white text-sm font-medium">Recipient Address</label>
+              <label className="text-white text-xs md:text-sm font-medium">Recipient Address</label>
               <input
                 type="text"
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 font-mono text-sm"
+                className="w-full px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 font-mono text-xs md:text-sm"
               />
             </div>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-                <p className="text-yellow-200 text-sm">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg md:rounded-xl p-3 md:p-4">
+              <div className="flex items-start gap-2 md:gap-3">
+                <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <p className="text-yellow-200 text-xs md:text-sm">
                   Please double-check the recipient address. Transactions cannot be reversed.
                 </p>
               </div>
             </div>
           </DialogContent>
-          <DialogActions className="p-6 gap-3">
+          <DialogActions className="p-4 md:p-6 gap-2 md:gap-3 flex-col sm:flex-row">
             <button
               onClick={() => setWithdrawDialogOpen(false)}
-              className="px-6 py-2 bg-white/10 border border-white/20 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white hover:bg-white/20 transition-all duration-200 text-sm md:text-base order-2 sm:order-1"
             >
               Cancel
             </button>
             <button
               onClick={handleWithdraw}
               disabled={loading}
-              className="px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg md:rounded-xl text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base order-1 sm:order-2"
             >
               {loading ? (
                 <CircularProgress size={16} style={{ color: 'white' }} />
@@ -512,22 +507,24 @@ const Profile = () => {
               backgroundColor: "#7f1d1d",
               borderRadius: "1rem",
               border: "1px solid rgba(255, 255, 255, 0.1)",
+              margin: "16px",
+              maxHeight: "calc(100vh - 32px)",
             },
           }}
         >
-          <DialogTitle className="text-white flex items-center gap-2">
-            <ExternalLink className="w-6 h-6" />
+          <DialogTitle className="text-white flex items-center gap-2 text-lg md:text-xl px-4 md:px-6 py-3 md:py-4">
+            <ExternalLink className="w-5 h-5 md:w-6 md:h-6" />
             Export Wallet
           </DialogTitle>
-          <DialogContent className="space-y-6">
-            <p className="text-red-200">
+          <DialogContent className="space-y-4 md:space-y-6 px-4 md:px-6">
+            <p className="text-red-200 text-xs md:text-sm">
               Export your embedded wallet's private key to use with other wallet clients like MetaMask. This will open Privy's secure export modal where you can safely copy your private key.
             </p>
 
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <ExternalLink className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                <div className="text-blue-200 text-sm">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg md:rounded-xl p-3 md:p-4">
+              <div className="flex items-start gap-2 md:gap-3">
+                <ExternalLink className="w-4 h-4 md:w-5 md:h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-blue-200 text-xs md:text-sm">
                   <p className="font-medium mb-1">What happens next:</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>Privy's secure export modal will open</li>
@@ -538,25 +535,25 @@ const Profile = () => {
               </div>
             </div>
 
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                <p className="text-red-200 text-sm">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg md:rounded-xl p-3 md:p-4">
+              <div className="flex items-start gap-2 md:gap-3">
+                <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-red-200 text-xs md:text-sm">
                   <strong>Security Warning:</strong> Keep your private key secure and never share it with anyone. Anyone with your private key has full access to your wallet.
                 </p>
               </div>
             </div>
           </DialogContent>
-          <DialogActions className="p-6 gap-3">
+          <DialogActions className="p-4 md:p-6 gap-2 md:gap-3 flex-col sm:flex-row">
             <button
               onClick={() => setExportDialogOpen(false)}
-              className="px-6 py-2 bg-white/10 border border-white/20 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white hover:bg-white/20 transition-all duration-200 text-sm md:text-base order-2 sm:order-1"
             >
               Close
             </button>
             <button
               onClick={handleExportPrivateKey}
-              className="px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg md:rounded-xl text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm md:text-base order-1 sm:order-2"
             >
               <ExternalLink className="w-4 h-4" />
               Open Wallet Manager

@@ -139,52 +139,52 @@ const LeaderBoards = () => {
     const ipfsUrl = nft?.imageUrl;
 
     return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 max-w-lg w-full mx-4">
-          <div className="space-y-4">
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg md:rounded-2xl p-4 md:p-6 max-w-lg w-full">
+          <div className="space-y-3 md:space-y-4">
             <img
               src={nft?.imageUrl}
               alt="NFT"
-              className="w-full md:h-128 object-cover rounded-xl"
+              className="w-full h-48 md:h-64 lg:h-80 object-cover rounded-lg md:rounded-xl"
             />
-            <div className="space-y-2 text-white">
-              <h3 className="text-lg md:text-xl font-bold">NFT Details</h3>
-              <div className="flex flex-row  items-center justify-between">
-                <p>
+            <div className="space-y-2 md:space-y-3 text-white">
+              <h3 className="text-base md:text-lg lg:text-xl font-bold">NFT Details</h3>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <p className="text-sm md:text-base">
                   <span className="text-red-400">Participant:</span>{" "}
                   {nft?.participantName}
                 </p>
-                <p>
+                <p className="text-sm md:text-base">
                   <span className="text-red-400">Quiz Creator:</span>{" "}
                   {nft?.quizCreatorName}
                 </p>
               </div>
-              <div className="flex flex-row items-center justify-between">
-                <p>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <p className="text-sm md:text-base">
                   <span className="text-red-400">Quiz Name:</span>{" "}
                   {nft?.quizName}
                 </p>
-                <p>
+                <p className="text-sm md:text-base">
                   <span className="text-red-400">Token ID:</span>{" "}
                   {participant?.nftTokenId}
                 </p>
               </div>
               {/* Verification Links */}
-              <div className="space-y-2 mt-4">
-                <h4 className="text-lg md:text-lg font-semibold">
+              <div className="space-y-2 md:space-y-3 mt-3 md:mt-4">
+                <h4 className="text-base md:text-lg font-semibold">
                   Verify Ownership
                 </h4>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3">
                   <a
                     href={tronScanUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between px-4 py-1 md:py-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                    className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 bg-white/10 rounded-lg md:rounded-xl hover:bg-white/20 transition-colors"
                   >
-                    <span className="text-sm md:text-md">Contract</span>
+                    <span className="text-sm md:text-base">Contract</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
+                      className="h-4 w-4 md:h-5 md:w-5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -202,12 +202,12 @@ const LeaderBoards = () => {
                     href={ipfsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between px-4 py-1 md:py-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                    className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 bg-white/10 rounded-lg md:rounded-xl hover:bg-white/20 transition-colors"
                   >
-                    <span className="text-sm md:text-md">See on IPFS</span>
+                    <span className="text-sm md:text-base">See on IPFS</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
+                      className="h-4 w-4 md:h-5 md:w-5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -222,7 +222,7 @@ const LeaderBoards = () => {
                   </a>
                   <button
                     onClick={onClose}
-                    className="text-sm md:text-md w-full py-1 md:py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
+                    className="text-sm md:text-base w-full py-2 md:py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg md:rounded-xl transition-colors md:col-span-1"
                   >
                     Close
                   </button>
@@ -237,12 +237,12 @@ const LeaderBoards = () => {
 
   return (
     <div
-      className="flex items-center justify-center"
+      className="flex items-center justify-center px-4"
       style={{ height: "calc(100vh - 6rem)" }}
     >
-      <div className="max-w-4xl w-full mx-auto px-4">
-        <div className="text-center space-y-4 mb-8">
-          <h1 className="text-2xl md:text-5xl font-bold text-white">
+      <div className="max-w-4xl w-full mx-auto">
+        <div className="text-center space-y-2 md:space-y-4 mb-6 md:mb-8">
+          <h1 className="text-xl md:text-3xl lg:text-5xl font-bold text-white">
             Quiz Leaderboard &nbsp;
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">
               #{id}
@@ -250,36 +250,39 @@ const LeaderBoards = () => {
           </h1>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20 shadow-xl space-y-6">
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg md:rounded-2xl p-4 md:p-6 lg:p-8 border border-white/20 shadow-xl space-y-4 md:space-y-6">
           {/* Quiz Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 md:p-4 rounded-xl border border-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-white/10">
               <div className="flex items-center gap-2 text-white">
-                <HelpCircle size={20} />
-                <span className="text-sm font-medium">Questions</span>
+                <HelpCircle size={16} className="md:hidden" />
+                <HelpCircle size={20} className="hidden md:block" />
+                <span className="text-xs md:text-sm font-medium">Questions</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-red-400 md:mt-2">
+              <p className="text-lg md:text-xl lg:text-2xl font-bold text-red-400 md:mt-2">
                 {quiz.questionCount}
               </p>
             </div>
 
-            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 md:p-4 rounded-xl border border-white/10">
+            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-white/10">
               <div className="flex items-center gap-2 text-white">
-                <Users size={20} />
-                <span className="text-sm font-medium">Participants</span>
+                <Users size={16} className="md:hidden" />
+                <Users size={20} className="hidden md:block" />
+                <span className="text-xs md:text-sm font-medium">Participants</span>
               </div>
-              <p className="text-2xl md:text-2xl font-bold text-red-400 md:mt-2">
+              <p className="text-lg md:text-xl lg:text-2xl font-bold text-red-400 md:mt-2">
                 {participants.length}
               </p>
             </div>
 
-            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 p-4 rounded-xl border border-white/10">
+            <div className="flex flex-row md:flex-col items-center justify-between md:items-start md:justify-start bg-white/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-white/10">
               <div className="flex items-center gap-2 text-white">
-                <Trophy size={20} />
-                <span className="text-sm font-medium">Status</span>
+                <Trophy size={16} className="md:hidden" />
+                <Trophy size={20} className="hidden md:block" />
+                <span className="text-xs md:text-sm font-medium">Status</span>
               </div>
               <p
-                className={`text-lg md:text-2xl font-bold md:mt-2 ${
+                className={`text-lg md:text-xl lg:text-2xl font-bold md:mt-2 ${
                   quiz.isPublic ? "text-green-400" : "text-pink-400"
                 }`}
               >
@@ -289,27 +292,28 @@ const LeaderBoards = () => {
           </div>
 
           {/* Search and Sort Controls */}
-          <div className="hidden md:flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-center">
             <div className="relative w-full md:w-auto">
               <input
                 type="text"
                 placeholder="Search participants..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="w-full md:w-64 px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 pl-10"
+                className="w-full md:w-64 px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 pl-9 md:pl-10 text-sm md:text-base"
               />
               <Search
-                className="absolute left-3 top-3.5 text-red-400"
-                size={20}
+                className="absolute left-2 md:left-3 top-2.5 md:top-3.5 text-red-400"
+                size={16}
               />
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <SortAsc size={20} className="text-red-400" />
+              <SortAsc size={16} className="text-red-400 md:hidden" />
+              <SortAsc size={20} className="text-red-400 hidden md:block" />
               <select
                 value={sortOption}
                 onChange={handleSortChange}
-                className="w-full md:w-auto px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-400 appearance-none cursor-pointer"
+                className="w-full md:w-auto px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-400 appearance-none cursor-pointer text-sm md:text-base"
               >
                 <option value="name">Sort by Name</option>
                 <option value="score">Sort by Score</option>
@@ -318,16 +322,16 @@ const LeaderBoards = () => {
           </div>
 
           {/* Participants List */}
-          <div className="space-y-2 mt-6">
+          <div className="space-y-2 md:space-y-3 mt-4 md:mt-6">
             {sortedParticipants.map((participant, index) => (
               <div
                 key={participant.walletAddress}
-                className="flex items-center justify-between p-3 md:p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-colors"
+                className="flex items-center justify-between p-3 md:p-4 bg-white/5 rounded-lg md:rounded-xl border border-white/10 hover:bg-white/10 transition-colors"
               >
-                <div className="flex items-center gap-4">
-                  <span className="text-red-400 font-medium">{index + 1}</span>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <span className="text-red-400 font-medium text-sm md:text-base min-w-[24px]">{index + 1}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-white">
+                    <span className="text-white text-sm md:text-base truncate">
                       {participant.user.name}
                     </span>
                   </div>
@@ -340,7 +344,7 @@ const LeaderBoards = () => {
                 >
                   View NFT
                 </button> */}
-                <span className="text-pink-400 font-bold">
+                <span className="text-pink-400 font-bold text-sm md:text-base">
                   {participant.score}
                 </span>
               </div>

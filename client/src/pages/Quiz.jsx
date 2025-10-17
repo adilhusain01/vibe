@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import axios from "../api/axios";
 import { Dialog, DialogContent } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
+import ConnectWallet from "../components/ConnectWallet";
 import {
   Timer,
   ArrowRight,
@@ -34,10 +35,13 @@ const Quiz = () => {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchQuiz = async () => {
+      // Only proceed if we have authentication and wallet address
       if (!authenticated || !walletAddress) {
-        toast.error("Please connect your wallet first.");
-        await connectWallet();
+        // Don't show toast on initial load or when auth is changing
+        setLoading(false);
         return;
       }
 
@@ -52,28 +56,41 @@ const Quiz = () => {
           }
         );
 
-        setQuiz(response.data);
-        setQuizStarted(response.data.isPublic);
-        setQuizEnded(response.data.isFinished);
-        setQuizCreator(response.data.creatorName);
-        setLoading(false);
+        if (!isCancelled) {
+          setQuiz(response.data);
+          setQuizStarted(response.data.isPublic);
+          setQuizEnded(response.data.isFinished);
+          setQuizCreator(response.data.creatorName);
+          setLoading(false);
+        }
       } catch (err) {
-        setError(err.response?.data?.error);
-        console.log(err);
+        if (!isCancelled) {
+          setError(err.response?.data?.error);
+          console.log(err);
 
-        if (err.response?.status === 404) setMessage("Quiz not found");
-        setLoading(false);
+          if (err.response?.status === 404) setMessage("Quiz not found");
+          setLoading(false);
 
-        toast.error(
-          err.response?.data?.error ||
-            "An error occurred while fetching the quiz."
-        );
+          toast.error(
+            err.response?.data?.error ||
+              "An error occurred while fetching the quiz."
+          );
+        }
       }
     };
 
-    fetchQuiz();
-    loadAllQuizzes(); // Ensure loadAllQuizzes is awaited
-  }, [id, walletAddress, connectWallet, authenticated]);
+    // Only fetch if we have the required data
+    if (authenticated && walletAddress) {
+      fetchQuiz();
+      loadAllQuizzes();
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [id, walletAddress, authenticated]);
 
   useEffect(() => {
     let interval;
@@ -149,7 +166,7 @@ const Quiz = () => {
     setIsSubmitting(true);
     try {
       // 1. First, submit quiz answers to API
-      const quizSubmissionResponse = await axios.post(
+      await axios.post(
         "/api/quiz/submit",
         {
           quizId: id,
@@ -165,7 +182,7 @@ const Quiz = () => {
 
       toast.success("Quiz score submitted successfully!");
 
-      // 8. Navigate to leaderboards
+      // Navigate to leaderboards
       navigate(`/leaderboards/${id}`);
     } catch (err) {
       console.error(err);
@@ -179,11 +196,13 @@ const Quiz = () => {
   };
 
   const loadAllQuizzes = async () => {
+    // This function appears to be a placeholder
+    // Removing toast notifications to prevent spam
     try {
-      toast.success("Quizzes loaded successfully");
+      // Add actual quiz loading logic here if needed
+      console.log("Quiz data refreshed");
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to load quizzes");
+      console.error("Error refreshing quiz data:", error);
     }
   };
 
@@ -203,6 +222,17 @@ const Quiz = () => {
       >
         <Loader2 className="w-6 md:w-8 h-6 md:h-8 text-red-400 animate-spin" />
       </div>
+    );
+  }
+
+  if (!authenticated || !walletAddress) {
+    return (
+      <ConnectWallet
+        connectWallet={connectWallet}
+        icon={Timer}
+        title="Connect Your Wallet"
+        description="Please connect your wallet to participate in this quiz"
+      />
     );
   }
 

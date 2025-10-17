@@ -6,14 +6,14 @@ import StatsSection from "../StatsSection";
 const Home = () => {
   return (
     <div
-      className="container mx-auto px-4 py-10 md:py-0"
+      className="container mx-auto px-4 py-6 md:py-10 lg:py-0"
       style={{ height: "calc(100vh - 6rem)" }}
     >
-      <div className="grid lg:grid-cols-2 justify-items-center items-center gap-8 md:mb-16">
+      <div className="grid lg:grid-cols-2 justify-items-center items-center gap-6 md:gap-8 md:mb-16">
         {/* Left Column - Hero Content */}
-        <div className="max-w-xl space-y-8">
-          <div className="text-center md:text-left space-y-4">
-            <h1 className="text-4xl md:text-6xl font-bold text-white">
+        <div className="max-w-xl space-y-6 md:space-y-8">
+          <div className="text-center md:text-left space-y-3 md:space-y-4">
+            <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold text-white leading-tight">
               Learn & Engage
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">
@@ -23,16 +23,16 @@ const Home = () => {
           </div>
 
           {/* Main Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4">
             <Link
               to="/quiz-options"
-              className="group bg-white/10 backdrop-blur-lg rounded-xl p-10 border border-white/20 hover:bg-white/20 transition-all"
+              className="group bg-white/10 backdrop-blur-lg rounded-lg md:rounded-xl p-6 md:p-8 lg:p-10 border border-white/20 hover:bg-white/20 transition-all"
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Play className="text-white" size={24} />
+              <div className="flex flex-col items-center space-y-2 md:space-y-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="text-white" size={20} />
                 </div>
-                <span className="text-lg font-semibold text-white">Quiz</span>
+                <span className="text-sm md:text-lg font-semibold text-white">Quiz</span>
               </div>
             </Link>
 
@@ -62,13 +62,13 @@ const Home = () => {
 
             <Link
               to="/fact-check"
-              className="group bg-white/10 backdrop-blur-lg rounded-xl p-10 border border-white/20 hover:bg-white/20 transition-all"
+              className="group bg-white/10 backdrop-blur-lg rounded-lg md:rounded-xl p-6 md:p-8 lg:p-10 border border-white/20 hover:bg-white/20 transition-all"
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <CheckCircle className="text-white" size={24} />
+              <div className="flex flex-col items-center space-y-2 md:space-y-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CheckCircle className="text-white" size={20} />
                 </div>
-                <span className="text-lg font-semibold text-white">
+                <span className="text-sm md:text-lg font-semibold text-white text-center">
                   Fact Check
                 </span>
               </div>
@@ -76,11 +76,13 @@ const Home = () => {
           </div>
         </div>
 
-        <div className="hidden md:block relative h-[800px] w-full">
+        <div className="hidden lg:block relative h-[600px] lg:h-[800px] w-full">
           <AnimatedBackground />
         </div>
       </div>
-      <StatsSection />
+      <div className="mt-8 md:mt-12">
+        <StatsSection />
+      </div>
     </div>
   );
 };
