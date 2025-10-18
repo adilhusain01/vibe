@@ -1,6 +1,7 @@
 const User = require("../models/User");
-const Quiz = require("../models/Quiz"); 
+const Quiz = require("../models/Quiz");
 const { v4: uuidv4 } = require("uuid");
+const { ethers } = require("ethers");
 
 
 exports.createOrGetUser = async (req, res) => {
@@ -55,20 +56,54 @@ exports.getUserProfile = async (req, res) => {
 };
 
 exports.verifyLoginPayload = async (req, res) => {
-  const { payload, signature } = req.body;
+  const { payload, signature, walletAddress } = req.body;
 
   try {
+    // Validate required fields
+    if (!payload || !signature || !walletAddress) {
+      return res.status(400).json({
+        valid: false,
+        error: "Missing required fields: payload, signature, and walletAddress"
+      });
+    }
 
-    return res.status(200).json({ 
-      valid: true,
-      payload: {
-        ...payload,
-        nonce: Math.floor(Math.random() * 1000000).toString()
+    // Create the message that was signed
+    const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
+
+    // Verify the signature
+    try {
+      const recoveredAddress = ethers.verifyMessage(message, signature);
+
+      // Check if the recovered address matches the provided wallet address
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(401).json({
+          valid: false,
+          error: "Signature verification failed: wallet address mismatch"
+        });
       }
-    });
+
+      // Generate a secure nonce for the session
+      const nonce = ethers.hexlify(ethers.randomBytes(32));
+
+      return res.status(200).json({
+        valid: true,
+        payload: {
+          ...payload,
+          nonce: nonce
+        }
+      });
+
+    } catch (sigError) {
+      console.error("Signature verification error:", sigError);
+      return res.status(401).json({
+        valid: false,
+        error: "Invalid signature format or verification failed"
+      });
+    }
+
   } catch (error) {
     console.error("Error in verifyLoginPayload:", error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: "Internal server error during verification" });
   }
 };
 

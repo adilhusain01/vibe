@@ -2,6 +2,7 @@
 const Quiz = require("../models/Quiz");
 const User = require("../models/User");
 const pdfParse = require("pdf-parse");
+const mongoose = require("mongoose");
 const cheerio = require("cheerio");
 const { google } = require("googleapis");
 const youtube = google.youtube("v3");
@@ -568,72 +569,120 @@ exports.joinQuiz = async (req, res) => {
       return res.status(400).json({ error: "Wallet address and participant name are required." });
   }
 
+  // Start a transaction session for atomic operations
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    const quiz = await Quiz.findOne({ quizId }).populate('participants.user', 'walletAddress'); 
-
-    if (!quiz) return res.status(404).json({ error: "Quiz not found" });
-    if (!quiz.isPublic) return res.status(403).json({ error: "This quiz is not active or is private." });
-    if (quiz.isFinished) return res.status(410).json({ error: "This quiz has already ended." });
-
-
-    let user = await User.findOne({ walletAddress });
+    // Find or create user first (outside of quiz participation logic)
+    let user = await User.findOne({ walletAddress }).session(session);
     if (!user) {
       user = new User({
-        userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // Use uuid
+        userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
         walletAddress,
         name: participantName,
-        email, 
+        email,
         authType: authType || 'wallet'
       });
-      await user.save();
+      await user.save({ session });
     } else {
       if (participantName && user.name !== participantName) {
         user.name = participantName;
-        await user.save();
+        await user.save({ session });
       }
     }
 
+    // Use atomic findOneAndUpdate to prevent race conditions
+    const updateResult = await Quiz.findOneAndUpdate(
+      {
+        quizId: quizId,
+        isPublic: true,
+        isFinished: false,
+        $expr: { $lt: [{ $size: "$participants" }, "$maxParticipants"] }, // Atomic participant count check
+        "participants.user": { $ne: user._id } // Ensure user hasn't already joined
+      },
+      {
+        $push: { participants: { user: user._id } }
+      },
+      {
+        new: true,
+        session: session
+      }
+    );
 
-    const alreadyParticipant = quiz.participants.some(p => p.user?.walletAddress === walletAddress);
-    if (alreadyParticipant) {
-      return res.status(409).json({ error: "You have already joined this quiz." }); 
+    if (!updateResult) {
+      // Determine the specific reason for failure
+      const quiz = await Quiz.findOne({ quizId }).session(session);
+
+      if (!quiz) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: "Quiz not found" });
+      }
+
+      if (!quiz.isPublic) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(403).json({ error: "This quiz is not active or is private." });
+      }
+
+      if (quiz.isFinished) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(410).json({ error: "This quiz has already ended." });
+      }
+
+      if (quiz.participants.length >= quiz.maxParticipants) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(403).json({
+          error: "The maximum number of participants for this quiz has been reached.",
+        });
+      }
+
+      // User already joined
+      const alreadyJoined = quiz.participants.some(p => p.user && p.user.toString() === user._id.toString());
+      if (alreadyJoined) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(409).json({ error: "You have already joined this quiz." });
+      }
+
+      // Unknown error
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(500).json({ error: "Failed to join quiz due to unexpected error." });
     }
 
-
-    const participantCount = quiz.participants.length;
-    if (participantCount >= quiz.maxParticipants) {
-      return res.status(403).json({
-        error: "The maximum number of participants for this quiz has been reached.",
-      });
+    // Update user's quiz history atomically
+    if (!user.quizzesTaken.includes(updateResult._id)) {
+        await User.findByIdAndUpdate(
+          user._id,
+          { $addToSet: { quizzesTaken: updateResult._id } },
+          { session }
+        );
     }
 
-
-    quiz.participants.push({ user: user._id }); 
-
-
-    if (!user.quizzesTaken.includes(quiz._id)) {
-        user.quizzesTaken.push(quiz._id);
-        await user.save(); 
-    }
-
-
-    await quiz.save();
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
 
     // 🔄 CRITICAL: Invalidate cache when participant joins
     invalidateCache.quiz(quizId);
     console.log(`🗑️ Cache invalidated for quiz join: ${quizId}`);
 
-    res.status(200).json({ message: "Successfully joined the quiz." }); 
-
+    res.status(200).json({ message: "Successfully joined the quiz." });
 
   } catch (err) {
     console.error("Error joining quiz:", err);
-     if (err.code === 11000) { 
-       res.status(409).json({ error: "A conflict occurred. You might already be registered or joined." });
-     } else {
-       res.status(500).json({ error: "Failed to join quiz. " + err.message });
-     }
+    await session.abortTransaction();
+    session.endSession();
+
+    if (err.code === 11000) {
+      res.status(409).json({ error: "A conflict occurred. You might already be registered or joined." });
+    } else {
+      res.status(500).json({ error: "Failed to join quiz. " + err.message });
+    }
   }
 };
 

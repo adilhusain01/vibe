@@ -11,8 +11,6 @@ const { getCircuitBreakerStats } = require("./middleware/circuitBreaker");
 require("dotenv").config();
 
 const quizRoutes = require("./routes/quizRoutes");
-const typingRoutes = require("./routes/typingRoutes");
-const memoryChallengeRoutes = require("./routes/memoryChallengeRoutes");
 const userRoutes = require("./routes/userRoutes");
 
 const app = express();
@@ -74,8 +72,6 @@ app.get('/api/stats', (req, res) => {
 
 // API routes with appropriate rate limiting
 app.use("/api/quiz", quizRoutes);
-app.use("/api/typing", typingRoutes);
-app.use("/api/memory-challenge", memoryChallengeRoutes);
 app.use("/api/fact-check", require("./routes/factCheckingRoutes"));
 app.use("/api/users", userRoutes);
 

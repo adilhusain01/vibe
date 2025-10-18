@@ -6,6 +6,7 @@ import axios from "../api/axios";
 import { ethers } from "ethers";
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
+import { sanitizeFilename, sanitizeGameId } from '../utils/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -418,8 +419,13 @@ const FactCheckCreation = () => {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${baseUrl}/fact-check/${factCheckId}`);
-    toast.success("Link copied to clipboard");
+    const sanitizedFactCheckId = sanitizeGameId(factCheckId);
+    if (sanitizedFactCheckId) {
+      navigator.clipboard.writeText(`${baseUrl}/fact-check/${sanitizedFactCheckId}`);
+      toast.success("Link copied to clipboard");
+    } else {
+      toast.error("Invalid fact check ID");
+    }
   };
 
   const handleStartGame = async () => {
@@ -636,7 +642,7 @@ const FactCheckCreation = () => {
                 className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white flex items-center justify-center gap-2 cursor-pointer hover:bg-white/20 transition-colors"
               >
                 <Upload size={20} />
-                {pdfFile ? pdfFile.name : "Choose PDF File"}
+                {pdfFile ? sanitizeFilename(pdfFile.name) : "Choose PDF File"}
               </label>
             </div>
           </div>
@@ -771,16 +777,16 @@ const FactCheckCreation = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="flex flex-col items-center gap-6" ref={qrRef}>
                 <h2 className="text-xl md:text-2xl font-bold text-white">
-                  Game ID: <span className="text-red-400">{factCheckId}</span>
+                  Game ID: <span className="text-red-400">{sanitizeGameId(factCheckId) || 'Invalid ID'}</span>
                 </h2>
                 <div className="bg-white p-4 rounded-xl">
                   <QRCodeSVG
-                    value={`${baseUrl}/fact-check/${factCheckId}`}
+                    value={`${baseUrl}/fact-check/${sanitizeGameId(factCheckId) || 'invalid'}`}
                     className="w-48 h-48 sm:w-48 sm:h-48 md:w-64 md:h-64 lg:w-72 lg:h-72"
                   />
                 </div>
                 <TextField
-                  value={`${baseUrl}/fact-check/${factCheckId}`}
+                  value={`${baseUrl}/fact-check/${sanitizeGameId(factCheckId) || 'invalid'}`}
                   slotProps={{
                     input: {
                       readOnly: true,

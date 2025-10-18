@@ -6,6 +6,7 @@ import axios from "../api/axios";
 import { ethers } from "ethers";
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
+import { sanitizeText, sanitizeFilename, sanitizeUrl, sanitizeGameId } from '../utils/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -408,8 +409,13 @@ const QuizCreation = () => {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${baseUrl}/quiz/${quizId}`);
-    toast.success("Link copied to clipboard");
+    const sanitizedQuizId = sanitizeGameId(quizId);
+    if (sanitizedQuizId) {
+      navigator.clipboard.writeText(`${baseUrl}/quiz/${sanitizedQuizId}`);
+      toast.success("Link copied to clipboard");
+    } else {
+      toast.error("Invalid quiz ID");
+    }
   };
 
   const handleStartQuiz = async () => {
@@ -615,7 +621,7 @@ const QuizCreation = () => {
                 className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white flex items-center justify-center gap-2 cursor-pointer hover:bg-white/20 transition-colors"
               >
                 <Upload size={20} />
-                {pdfFile ? pdfFile.name : "Choose PDF File"}
+                {pdfFile ? sanitizeFilename(pdfFile.name) : "Choose PDF File"}
               </label>
             </div>
           </div>
@@ -761,16 +767,16 @@ const QuizCreation = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="flex flex-col items-center gap-6" ref={qrRef}>
                 <h2 className="text-xl md:text-2xl font-bold text-white">
-                  Quiz ID: <span className="text-red-400">{quizId}</span>
+                  Quiz ID: <span className="text-red-400">{sanitizeGameId(quizId) || 'Invalid ID'}</span>
                 </h2>
                 <div className="bg-white p-4 rounded-xl">
                   <QRCodeSVG
-                    value={`${baseUrl}/quiz/${quizId}`}
+                    value={`${baseUrl}/quiz/${sanitizeGameId(quizId) || 'invalid'}`}
                     className="w-48 h-48 sm:w-48 sm:h-48 md:w-64 md:h-64 lg:w-72 lg:h-72"
                   />
                 </div>
                 <TextField
-                  value={`${baseUrl}/quiz/${quizId}`}
+                  value={`${baseUrl}/quiz/${sanitizeGameId(quizId) || 'invalid'}`}
                   slotProps={{
                     input: {
                       readOnly: true,

@@ -1,4 +1,5 @@
 const multer = require('multer');
+const { ethers } = require('ethers');
 
 // File size limits (in bytes)
 const FILE_SIZE_LIMITS = {
@@ -183,13 +184,165 @@ const validateURL = (req, res, next) => {
     next();
 };
 
+// Sanitize HTML/XSS content
+const sanitizeInput = (fields = []) => {
+    return (req, res, next) => {
+        try {
+            for (const field of fields) {
+                if (req.body[field]) {
+                    let value = req.body[field];
+
+                    if (typeof value === 'string') {
+                        // Remove HTML tags and potential XSS vectors
+                        value = value
+                            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                            .replace(/<[^>]*>/g, '')
+                            .replace(/javascript:/gi, '')
+                            .replace(/on\w+\s*=/gi, '')
+                            .replace(/&lt;script/gi, '')
+                            .replace(/&gt;/gi, '')
+                            .trim();
+
+                        // Additional sanitization for specific patterns
+                        value = value
+                            .replace(/eval\s*\(/gi, '')
+                            .replace(/expression\s*\(/gi, '')
+                            .replace(/vbscript:/gi, '')
+                            .replace(/data:text\/html/gi, '');
+
+                        req.body[field] = value;
+                    }
+                }
+            }
+            next();
+        } catch (error) {
+            console.error('Sanitization error:', error);
+            return res.status(400).json({ error: 'Invalid input format' });
+        }
+    };
+};
+
+// Validate quiz/fact check IDs are alphanumeric
+const validateGameId = (req, res, next) => {
+    const { quizId, factCheckId } = req.params;
+    const gameId = quizId || factCheckId;
+
+    if (gameId && !/^[a-zA-Z0-9]{5,15}$/.test(gameId)) {
+        return res.status(400).json({ error: 'Invalid game ID format' });
+    }
+
+    next();
+};
+
+// Validate and sanitize text content
+const validateTextContent = (field, maxLength = 1000) => {
+    return (req, res, next) => {
+        const content = req.body[field];
+
+        if (!content) {
+            return res.status(400).json({ error: `${field} is required` });
+        }
+
+        if (typeof content !== 'string') {
+            return res.status(400).json({ error: `${field} must be a string` });
+        }
+
+        // Check for suspicious patterns
+        const suspiciousPatterns = [
+            /<script/i,
+            /javascript:/i,
+            /on\w+\s*=/i,
+            /eval\s*\(/i,
+            /expression\s*\(/i,
+            /vbscript:/i,
+            /data:text\/html/i
+        ];
+
+        if (suspiciousPatterns.some(pattern => pattern.test(content))) {
+            return res.status(400).json({ error: `${field} contains invalid characters` });
+        }
+
+        if (content.length > maxLength) {
+            return res.status(413).json({
+                error: `${field} too long. Maximum length is ${maxLength} characters`
+            });
+        }
+
+        // Sanitize the content
+        const sanitized = content
+            .replace(/<[^>]*>/g, '')
+            .replace(/javascript:/gi, '')
+            .replace(/on\w+\s*=/gi, '')
+            .trim();
+
+        req.body[field] = sanitized;
+        next();
+    };
+};
+
+// Validate answers object for quiz/fact check submission
+const validateAnswers = (req, res, next) => {
+    const { answers } = req.body;
+
+    if (!answers || typeof answers !== 'object') {
+        return res.status(400).json({ error: 'Answers must be an object' });
+    }
+
+    // Validate each answer
+    for (const [questionId, answer] of Object.entries(answers)) {
+        // Validate question ID format
+        if (!/^[a-fA-F0-9]{24}$/.test(questionId)) {
+            return res.status(400).json({ error: 'Invalid question ID format' });
+        }
+
+        // Validate answer value
+        if (!['true', 'false', 'A', 'B', 'C', 'D'].includes(answer)) {
+            return res.status(400).json({ error: 'Invalid answer format' });
+        }
+    }
+
+    next();
+};
+
+// Enhanced wallet address validation with checksum
+const validateWalletAddressEnhanced = (req, res, next) => {
+    const { creatorWallet, walletAddress } = req.body;
+    const wallet = creatorWallet || walletAddress;
+
+    if (!wallet) {
+        return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    try {
+        // Use ethers to validate and normalize the address
+        const normalizedAddress = ethers.getAddress(wallet);
+
+        // Update the request with the normalized address
+        if (creatorWallet) {
+            req.body.creatorWallet = normalizedAddress;
+        }
+        if (walletAddress) {
+            req.body.walletAddress = normalizedAddress;
+        }
+
+        next();
+    } catch (error) {
+        return res.status(400).json({ error: 'Invalid wallet address format' });
+    }
+};
+
 module.exports = {
     validateRequestSize,
     validateFileUpload,
     validateContentLength,
     validateNumbers,
     validateWalletAddress,
+    validateWalletAddressEnhanced,
     validateURL,
+    sanitizeInput,
+    validateGameId,
+    validateTextContent,
+    validateAnswers,
     CONTENT_LIMITS,
     FILE_SIZE_LIMITS
 };

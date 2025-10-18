@@ -10,8 +10,6 @@ const FactCheckCreation = lazy(() => import("./pages/FactCheckCreation"));
 const FactCheckOptions = lazy(() => import("./pages/FactCheckOptions"));
 const LeaderBoards = lazy(() => import("./pages/LeaderBoards"));
 const Quiz = lazy(() => import("./pages/Quiz"));
-const Typing = lazy(() => import("./pages/Typing"));
-const MemoryChallenge = lazy(() => import("./pages/MemoryChallenge"));
 const QuizOptions = lazy(() => import("./pages/QuizOptions"));
 const BrokenLink = lazy(() => import("./pages/BrokenLink"));
 const ServerError = lazy(() => import("./pages/ServerError"));
@@ -117,8 +115,6 @@ const App = () => {
       path="/fact-check-leaderboards/:id"
       element={<FactCheckLeaderboards />}
       />
-      <Route path="/typing" element={<Typing />} />
-      <Route path="/memoryChallenge" element={<MemoryChallenge />} />
       <Route path="/fact-check-options" element={<FactCheckOptions />} />
       <Route path="/fact-check/:id" element={<FactCheck />} />
       <Route path="/quiz-options" element={<QuizOptions />} />

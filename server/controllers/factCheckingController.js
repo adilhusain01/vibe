@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const FactCheck = require("../models/FactCheck");
 const ParticipantFacts = require("../models/ParticipantFacts");
+const mongoose = require("mongoose");
 const pdfParse = require("pdf-parse");
 const { google } = require("googleapis");
 const youtube = google.youtube("v3");
@@ -476,49 +477,74 @@ exports.joinFactCheck = async (req, res) => {
   const { factCheckId } = req.params;
   const { walletAddress, participantName } = req.body;
 
+  // Start a transaction session for atomic operations
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const factCheck = await FactCheck.findOne({ factCheckId });
-    if (!factCheck)
+    // First check if fact check exists and is valid
+    const factCheck = await FactCheck.findOne({ factCheckId }).session(session);
+    if (!factCheck) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ error: "Fact Check not found" });
+    }
 
     if (factCheck.isPublic === false) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json({ error: "This fact check is private." });
     }
 
-    const existingParticipant = await ParticipantFacts.findOne({
+    // Check current participant count atomically
+    const currentParticipantCount = await ParticipantFacts.countDocuments({
       factCheckId,
-      walletAddress,
-    });
-    if (existingParticipant) {
-      return res
-        .status(403)
-        .json({ error: "You have already participated in this fact check." });
-    }
+    }).session(session);
 
-    const participantCount = await ParticipantFacts.countDocuments({
-      factCheckId,
-    });
-    if (participantCount >= factCheck.numParticipants) {
+    if (currentParticipantCount >= factCheck.numParticipants) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json({
-        error:
-          "The number of participants for this fact check has been reached.",
+        error: "The number of participants for this fact check has been reached.",
       });
     }
 
-    const participant = new ParticipantFacts({
-      factCheckId,
-      participantName,
-      walletAddress,
-    });
-    await participant.save();
+    // Try to create participant atomically with unique constraint
+    try {
+      const participant = new ParticipantFacts({
+        factCheckId,
+        participantName,
+        walletAddress,
+      });
+      await participant.save({ session });
 
-    // 🔄 CRITICAL: Invalidate cache when participant joins fact check
-    invalidateCache.factCheck(factCheckId);
-    console.log(`🗑️ Cache invalidated for fact check join: ${factCheckId}`);
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
 
-    res.status(200).json(participant);
+      // 🔄 CRITICAL: Invalidate cache when participant joins fact check
+      invalidateCache.factCheck(factCheckId);
+      console.log(`🗑️ Cache invalidated for fact check join: ${factCheckId}`);
+
+      res.status(200).json(participant);
+
+    } catch (saveError) {
+      await session.abortTransaction();
+      session.endSession();
+
+      if (saveError.code === 11000) {
+        // Duplicate key error - user already participated
+        return res.status(403).json({
+          error: "You have already participated in this fact check."
+        });
+      }
+      throw saveError;
+    }
+
   } catch (err) {
-    console.log(err);
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error joining fact check:", err);
     res.status(400).json({ error: err.message });
   }
 };
