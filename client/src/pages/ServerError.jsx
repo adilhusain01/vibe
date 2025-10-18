@@ -3,10 +3,7 @@ import { RefreshCw, Home as HomeIcon } from "lucide-react";
 
 const ServerError = () => {
   return (
-    <div
-      className="container mx-auto px-4 py-10 md:py-0"
-      style={{ height: "calc(100vh - 6rem)" }}
-    >
+    <div className="container mx-auto px-4 py-10 md:py-0 min-h-full flex items-center">
       <div className="flex flex-col items-center justify-center h-full space-y-6 md:space-y-8">
         <div className="text-center space-y-3 md:space-y-4">
           <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">

@@ -29,6 +29,7 @@ import {
   Video,
 } from "lucide-react";
 import ConnectWallet from "../components/ConnectWallet";
+import QuizCostDisplay from "../components/QuizCostDisplay";
 
 const QuizCreation = () => {
   const { type } = useParams();
@@ -57,6 +58,10 @@ const QuizCreation = () => {
   const qrRef = useRef();
   const fileInputRef = useRef();
   const [quizCreated, setQuizCreated] = useState(false);
+  const [costValidation, setCostValidation] = useState({
+    isValid: true,
+    totalCost: 0
+  });
   const baseUrl = import.meta.env.VITE_CLIENT_URI;
   const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 
@@ -118,6 +123,11 @@ const QuizCreation = () => {
       return;
     }
     setPdfFile(file);
+  };
+
+  // Handle cost calculation updates
+  const handleCostCalculated = (costInfo) => {
+    setCostValidation(costInfo);
   };
 
   const validateWebsiteUrl = async (url) => {
@@ -249,6 +259,32 @@ const QuizCreation = () => {
       }
     }
 
+    // ⚠️ CRITICAL: Check balance BEFORE creating quiz on server
+    if (costValidation.totalCost === 0) {
+      toast.error("Please fill in all required fields to calculate cost");
+      return;
+    }
+
+    // Check balance with fresh data
+    try {
+      const signer = await getContractSigner();
+      const currentBalance = await signer.getBalance();
+
+      // Convert simple cost to Wei for comparison
+      const requiredAmountInWei = ethers.utils.parseUnits(costValidation.totalCost.toString(), 18);
+
+      if (currentBalance.lt(requiredAmountInWei)) {
+        const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
+        toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
+        return;
+      }
+    } catch (balanceError) {
+      console.error("Balance check error:", balanceError);
+      toast.error("Unable to verify balance. Please try again.");
+      return;
+    }
+
+    // Calculate costs for server (maintaining backward compatibility)
     const rewardPerScoreInWei = ethers.utils.parseUnits(
       rewardPerScore.toString(),
       18
@@ -282,8 +318,8 @@ const QuizCreation = () => {
           ...(type === "prompt" && { title, prompt }),
           ...(type === "url" && { websiteUrl }),
           ...(type === "video" && { ytVideoUrl }),
-          numParticipants,
-          questionCount,
+          numParticipants: parseInt(numParticipants),
+          questionCount: parseInt(questionCount),
           rewardPerScore: rewardPerScoreInWei.toString(),
           creatorWallet: walletAddress,
           totalCost: totalCost.toString(),
@@ -292,6 +328,7 @@ const QuizCreation = () => {
         headers = { "Content-Type": "application/json" };
       }
 
+      console.log('📤 Sending data to server:', dataToSubmit);
       const response = await axios.post(config.endpoint, dataToSubmit, { headers });
 
       setQuizCreated(true);
@@ -299,23 +336,12 @@ const QuizCreation = () => {
       setQuizId(quizId);
 
       if (authenticated && walletAddress) {
+        // Balance already verified above, proceed with blockchain transaction
         const signer = await getContractSigner();
-
-        const balance = await signer.getBalance();
-        const requiredAmount = ethers.BigNumber.from(totalCost.toString());
-
-        console.log('💰 Wallet balance:', ethers.utils.formatEther(balance), 'STT');
-        console.log('💸 Required amount:', ethers.utils.formatEther(requiredAmount), 'STT');
-
-        if (balance.lt(requiredAmount)) {
-          const shortfall = ethers.utils.formatEther(requiredAmount.sub(balance));
-          toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
-          setLoading(false);
-          return;
-        }
-
         const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI.abi, signer);
         const budget = ethers.BigNumber.from(totalCost.toString());
+
+        console.log('🔥 Creating game with budget:', ethers.utils.formatEther(budget), 'STT');
 
         const tx = await contract.createGame({ value: budget });
         const receipt = await tx.wait();
@@ -323,10 +349,10 @@ const QuizCreation = () => {
           (event) => event.event === "GameCreated"
         ).args.gameId;
 
-        console.log("New Game ID:", gameId.toString());
+        console.log("✅ New Game ID:", gameId.toString());
         await axios.put(`/api/quiz/update/${quizId}`, { gameId });
 
-        toast.success("Quiz successfully created");
+        toast.success("🎉 Quiz successfully created and funded!");
 
         // Reset form
         setFormData({
@@ -601,10 +627,7 @@ const QuizCreation = () => {
   };
 
   return (
-    <div
-      className="flex items-center justify-center"
-      style={{ height: "calc(100vh - 6rem)" }}
-    >
+    <div className="flex items-center justify-center min-h-full">
       <div className="max-w-4xl mx-auto">
         <div className="text-center space-y-4 mb-8">
           <h1 className="text-2xl md:text-5xl font-bold text-white">
@@ -692,17 +715,26 @@ const QuizCreation = () => {
 
               {(type === "url" || type === "video") && renderTypeSpecificFields()}
 
+              {/* Cost Display Component */}
+              <QuizCostDisplay
+                numParticipants={formData.numParticipants}
+                questionCount={formData.questionCount}
+                rewardPerScore={formData.rewardPerScore}
+                onCostCalculated={handleCostCalculated}
+                disabled={loading}
+              />
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full px-6 py-3 md:py-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg md:rounded-xl text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
+                disabled={loading || !costValidation.isValid}
+                className="w-full px-6 py-3 md:py-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg md:rounded-xl text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
                   <>
                     <IconComponent size={20} />
-                    Generate Quiz
+                    {costValidation.isValid ? 'Create Quiz' : 'Insufficient Balance'}
                   </>
                 )}
               </button>

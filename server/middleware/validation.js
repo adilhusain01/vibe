@@ -105,8 +105,8 @@ const validateNumbers = (fields) => {
                 numParticipants: 1000,
                 questionCount: 50,
                 factsCount: 50,
-                rewardPerScore: 1000000, // 1M tokens max
-                totalCost: 10000000, // 10M tokens max
+                rewardPerScore: 1e21, // 1000 tokens in Wei (1000 * 10^18)
+                totalCost: 1e24, // 1M tokens in Wei (1000000 * 10^18)
             };
 
             if (limits[field] && num > limits[field]) {

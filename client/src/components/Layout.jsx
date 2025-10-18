@@ -6,10 +6,12 @@ const Header = lazy(() => import('./Header'));
 
 const Layout = () => {
   return (
-    <main className='flex flex-col w-full min-w-full'>
+    <main className='flex flex-col min-h-screen w-full'>
       <Suspense fallback={<LoadingSpinner />}>
         <Header />
-        <Outlet />
+        <div className='flex-1 overflow-y-auto p-4 md:p-8'>
+          <Outlet />
+        </div>
       </Suspense>
     </main>
   );

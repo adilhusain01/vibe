@@ -19,8 +19,8 @@ const AnimatedBackground = () => {
     renderer.setSize(width, height);
     container.appendChild(renderer.domElement);
 
-    // Create a sphere geometry
-    const geometry = new THREE.SphereGeometry(2.25, 12, 12);
+    // Create a sphere geometry - reduced size to fit better
+    const geometry = new THREE.SphereGeometry(1.8, 12, 12);
     const material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       wireframe: true,
@@ -65,7 +65,7 @@ const AnimatedBackground = () => {
   return (
     <div
       ref={containerRef}
-      className='hidden md:block w-full min-w-full h-full'
+      className='w-full h-full overflow-hidden'
     />
   );
 };

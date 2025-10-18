@@ -29,6 +29,7 @@ import {
   Video,
 } from "lucide-react";
 import ConnectWallet from "../components/ConnectWallet";
+import FactCheckCostDisplay from "../components/FactCheckCostDisplay";
 
 const FactCheckCreation = () => {
   const { type } = useParams();
@@ -57,6 +58,11 @@ const FactCheckCreation = () => {
   const qrRef = useRef();
   const fileInputRef = useRef();
   const [factCheckCreated, setFactCheckCreated] = useState(false);
+  const [costValidation, setCostValidation] = useState({
+    isValid: false,
+    totalCost: '0',
+    error: null
+  });
   const baseUrl = import.meta.env.VITE_CLIENT_URI;
   const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 
@@ -118,6 +124,11 @@ const FactCheckCreation = () => {
       return;
     }
     setPdfFile(file);
+  };
+
+  // Handle cost calculation updates
+  const handleCostCalculated = (costInfo) => {
+    setCostValidation(costInfo);
   };
 
   const validateWebsiteUrl = async (url) => {
@@ -246,6 +257,32 @@ const FactCheckCreation = () => {
         toast.error(urlValidation.error);
         return;
       }
+    }
+
+    // ⚠️ CRITICAL: Check balance BEFORE creating fact check on server
+    const simpleCost = numParticipants * factsCount * rewardPerScore;
+    if (simpleCost === 0) {
+      toast.error("Please fill in all required fields to calculate cost");
+      return;
+    }
+
+    // Check balance with fresh data
+    try {
+      const signer = await getContractSigner();
+      const currentBalance = await signer.getBalance();
+
+      // Convert simple cost to Wei for comparison
+      const requiredAmountInWei = ethers.utils.parseUnits(simpleCost.toString(), 18);
+
+      if (currentBalance.lt(requiredAmountInWei)) {
+        const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
+        toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
+        return;
+      }
+    } catch (balanceError) {
+      console.error("Balance check error:", balanceError);
+      toast.error("Unable to verify balance. Please try again.");
+      return;
     }
 
     const rewardPerScoreInWei = ethers.utils.parseUnits(
@@ -611,10 +648,7 @@ const FactCheckCreation = () => {
   };
 
   return (
-    <div
-      className="flex items-center justify-center px-4"
-      style={{ height: "calc(100vh - 6rem)" }}
-    >
+    <div className="flex items-center justify-center px-4 min-h-full">
       <div className="max-w-4xl mx-auto w-full">
         <div className="text-center space-y-4 mb-8">
           <h1 className="text-2xl md:text-5xl font-bold text-white">

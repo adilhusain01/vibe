@@ -472,6 +472,10 @@ exports.updateQuiz = async (req, res) => {
 
     await quiz.save();
 
+    // 🔄 CRITICAL: Invalidate cache when quiz is updated (especially isPublic status)
+    invalidateCache.quiz(quizId);
+    console.log(`🗑️ Cache invalidated for quiz: ${quizId}`);
+
     const participantWalletAddresses = quiz.participants.map((p) => p.user.walletAddress);
     const participantRewards = quiz.participants.map((p) => p.reward !== null ? p.reward.toString() : '0'); 
 
@@ -614,8 +618,11 @@ exports.joinQuiz = async (req, res) => {
     }
 
 
-    await quiz.save(); 
+    await quiz.save();
 
+    // 🔄 CRITICAL: Invalidate cache when participant joins
+    invalidateCache.quiz(quizId);
+    console.log(`🗑️ Cache invalidated for quiz join: ${quizId}`);
 
     res.status(200).json({ message: "Successfully joined the quiz." }); 
 
@@ -735,8 +742,11 @@ exports.submitQuiz = async (req, res) => {
     quiz.participants[participantIndex].reward = Number(totalRewardWei); 
 
 
-    await quiz.save(); 
+    await quiz.save();
 
+    // 🔄 CRITICAL: Invalidate cache when participant submits
+    invalidateCache.quiz(quizId);
+    console.log(`🗑️ Cache invalidated for quiz submit: ${quizId}`);
 
     res.status(200).json({
         message: "Quiz submitted successfully!",

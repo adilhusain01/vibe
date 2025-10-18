@@ -7,6 +7,7 @@ const youtube = google.youtube("v3");
 const { Supadata } = require('@supadata/js');
 const { Firecrawl } = require("@mendable/firecrawl-js");
 const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
+const { invalidateCache } = require("../middleware/cache");
 
 class FactGenerator {
   constructor() {
@@ -412,6 +413,10 @@ exports.updateFactCheck = async (req, res) => {
 
     await factCheck.save();
 
+    // 🔄 CRITICAL: Invalidate cache when fact check is updated (especially isPublic status)
+    invalidateCache.factCheck(factCheckId);
+    console.log(`🗑️ Cache invalidated for fact check: ${factCheckId}`);
+
     const participants = await ParticipantFacts.find({ factCheckId });
     const participantWalletAddress = participants.map((p) => p.walletAddress);
     const participantRewards = participants.map((p) => p.reward);
@@ -507,6 +512,10 @@ exports.joinFactCheck = async (req, res) => {
     });
     await participant.save();
 
+    // 🔄 CRITICAL: Invalidate cache when participant joins fact check
+    invalidateCache.factCheck(factCheckId);
+    console.log(`🗑️ Cache invalidated for fact check join: ${factCheckId}`);
+
     res.status(200).json(participant);
   } catch (err) {
     console.log(err);
@@ -565,6 +574,10 @@ exports.submitFactCheck = async (req, res) => {
     participant.score = score;
     participant.reward = totalReward;
     await participant.save();
+
+    // 🔄 CRITICAL: Invalidate cache when participant submits fact check
+    invalidateCache.factCheck(factCheckId);
+    console.log(`🗑️ Cache invalidated for fact check submit: ${factCheckId}`);
 
     res.status(200).json(participant);
   } catch (err) {
