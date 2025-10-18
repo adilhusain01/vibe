@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { usePrivyAuth } from "../context/PrivyAuthContext";
 import toast from "react-hot-toast";
 import axios from "../api/axios";
@@ -15,18 +16,38 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { Download, Copy, Globe, Users, HelpCircle, Trophy } from "lucide-react";
+import {
+  Download,
+  Copy,
+  Brain,
+  Globe,
+  FileText,
+  Users,
+  BookOpen,
+  Trophy,
+  Upload,
+  Video,
+} from "lucide-react";
+import ConnectWallet from "../components/ConnectWallet";
 
-const VideoToQuiz = () => {
+const FactCheckCreation = () => {
+  const { type } = useParams();
+  const navigate = useNavigate();
   const { walletAddress, getContractSigner, authenticated, connectWallet } = usePrivyAuth();
+
   const [formData, setFormData] = useState({
     creatorName: "",
-    ytVideoUrl: "",
+    topic: type === "prompt" ? "" : undefined,
+    websiteUrl: type === "url" ? "" : undefined,
+    ytVideoUrl: type === "video" ? "" : undefined,
     numParticipants: "",
-    questionCount: "",
+    factsCount: "",
     rewardPerScore: "",
+    difficulty: "medium",
   });
-  const [quizId, setQuizId] = useState(null);
+
+  const [pdfFile, setPdfFile] = useState(null);
+  const [factCheckId, setFactCheckId] = useState(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
@@ -34,10 +55,52 @@ const VideoToQuiz = () => {
   const [startDisabled, setStartDisabled] = useState(false);
   const [closeDisabled, setCloseDisabled] = useState(true);
   const qrRef = useRef();
-  const [quizCreated, setQuizCreated] = useState(false);
+  const fileInputRef = useRef();
+  const [factCheckCreated, setFactCheckCreated] = useState(false);
   const baseUrl = import.meta.env.VITE_CLIENT_URI;
-
   const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
+
+  // Redirect if invalid type
+  useEffect(() => {
+    const validTypes = ["prompt", "url", "video", "pdf"];
+    if (!validTypes.includes(type)) {
+      navigate("/fact-check");
+    }
+  }, [type, navigate]);
+
+  const getFactCheckConfig = () => {
+    const configs = {
+      prompt: {
+        title: "Create Fact Check from Topic",
+        highlight: "Topic",
+        icon: Brain,
+        endpoint: "/api/fact-check/create/prompt",
+        requiredFields: ["creatorName", "topic", "numParticipants", "factsCount", "rewardPerScore"]
+      },
+      url: {
+        title: "Create Fact Check from Website",
+        highlight: "Website",
+        icon: Globe,
+        endpoint: "/api/fact-check/create/url",
+        requiredFields: ["creatorName", "websiteUrl", "numParticipants", "factsCount", "rewardPerScore"]
+      },
+      video: {
+        title: "Create Fact Check from Youtube Video",
+        highlight: "Youtube Video",
+        icon: Video,
+        endpoint: "/api/fact-check/create/video",
+        requiredFields: ["creatorName", "ytVideoUrl", "numParticipants", "factsCount", "rewardPerScore"]
+      },
+      pdf: {
+        title: "Create Fact Check from PDF",
+        highlight: "PDF",
+        icon: FileText,
+        endpoint: "/api/fact-check/create/pdf",
+        requiredFields: ["creatorName", "numParticipants", "factsCount", "rewardPerScore"]
+      }
+    };
+    return configs[type] || configs.prompt;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,6 +108,43 @@ const VideoToQuiz = () => {
       ...formData,
       [name]: value,
     });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type !== "application/pdf") {
+      toast.error("Please select a valid PDF file");
+      setPdfFile(null);
+      return;
+    }
+    setPdfFile(file);
+  };
+
+  const validateWebsiteUrl = async (url) => {
+    if (!url) return { isValid: false, error: "URL is required" };
+
+    try {
+      const parsedUrl = new URL(url);
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return { isValid: false, error: "URL must use HTTP or HTTPS protocol" };
+      }
+
+      const invalidExtensions = [
+        ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".zip", ".doc", ".docx",
+      ];
+      if (
+        invalidExtensions.some((ext) =>
+          parsedUrl.pathname.toLowerCase().endsWith(ext)
+        )
+      ) {
+        return { isValid: false, error: "Direct file links are not supported" };
+      }
+
+      return { isValid: true, normalizedUrl: parsedUrl.href };
+    } catch (error) {
+      return { isValid: false, error: "Invalid URL format" };
+    }
   };
 
   const validateYouTubeUrl = (url) => {
@@ -61,11 +161,8 @@ const VideoToQuiz = () => {
       if (parsedUrl.hostname.includes("youtube.com")) {
         if (parsedUrl.pathname === "/watch") {
           const videoId = parsedUrl.searchParams.get("v");
-          if (!videoId) {
+          if (!videoId || videoId.length !== 11) {
             return { isValid: false, error: "Invalid YouTube video ID" };
-          }
-          if (videoId.length !== 11) {
-            return { isValid: false, error: "Invalid YouTube video ID length" };
           }
           return { isValid: true, videoId };
         }
@@ -101,34 +198,54 @@ const VideoToQuiz = () => {
       return;
     }
 
+    const config = getFactCheckConfig();
     const {
       creatorName,
+      topic,
+      websiteUrl,
       ytVideoUrl,
       numParticipants,
-      questionCount,
+      factsCount,
       rewardPerScore,
+      difficulty,
     } = formData;
 
-    if (
-      !creatorName ||
-      !ytVideoUrl ||
-      !numParticipants ||
-      !questionCount ||
-      !rewardPerScore
-    ) {
+    // Check required fields
+    const fieldValidation = config.requiredFields.every(field => {
+      if (field === "topic" && type === "prompt") return topic;
+      if (field === "websiteUrl" && type === "url") return websiteUrl;
+      if (field === "ytVideoUrl" && type === "video") return ytVideoUrl;
+      if (["creatorName", "numParticipants", "factsCount", "rewardPerScore"].includes(field)) {
+        return formData[field];
+      }
+      return true;
+    });
+
+    if (!fieldValidation || (type === "pdf" && !pdfFile)) {
       toast.error("All fields are required");
       return;
     }
 
-    if (questionCount > 30) {
-      toast.error("Question count cannot be more than 30");
+    if (factsCount > 30) {
+      toast.error("Facts count cannot be more than 30");
       return;
     }
 
-    const urlValidation = validateYouTubeUrl(ytVideoUrl);
-    if (!urlValidation.isValid) {
-      toast.error(urlValidation.error);
-      return;
+    // Type-specific validations
+    if (type === "url") {
+      const urlValidation = await validateWebsiteUrl(websiteUrl);
+      if (!urlValidation.isValid) {
+        toast.error(urlValidation.error);
+        return;
+      }
+    }
+
+    if (type === "video") {
+      const urlValidation = validateYouTubeUrl(ytVideoUrl);
+      if (!urlValidation.isValid) {
+        toast.error(urlValidation.error);
+        return;
+      }
     }
 
     const rewardPerScoreInWei = ethers.utils.parseUnits(
@@ -137,48 +254,58 @@ const VideoToQuiz = () => {
     );
     const totalCost = rewardPerScoreInWei
       .mul(numParticipants)
-      .mul(questionCount)
+      .mul(factsCount)
       .mul(ethers.BigNumber.from("110"))
       .div(ethers.BigNumber.from("100"));
 
     try {
-      const dataToSubmit = {
-        creatorName,
-        ytVideoUrl,
-        numParticipants,
-        questionCount,
-        rewardPerScore: rewardPerScoreInWei.toString(),
-        creatorWallet: walletAddress,
-        totalCost: totalCost.toString(),
-      };
-
       setLoading(true);
 
-      const response = await axios.post(
-        `/api/quiz/create/video`,
-        dataToSubmit,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      let dataToSubmit;
+      let headers;
 
-      setQuizCreated(true);
+      if (type === "pdf") {
+        dataToSubmit = new FormData();
+        dataToSubmit.append("creatorName", creatorName);
+        dataToSubmit.append("creatorWallet", walletAddress);
+        dataToSubmit.append("numParticipants", numParticipants);
+        dataToSubmit.append("pdf", pdfFile);
+        dataToSubmit.append("factsCount", factsCount);
+        dataToSubmit.append("rewardPerScore", rewardPerScoreInWei.toString());
+        dataToSubmit.append("totalCost", totalCost.toString());
+        dataToSubmit.append("difficulty", difficulty);
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        dataToSubmit = {
+          creatorName,
+          ...(type === "prompt" && { topic }),
+          ...(type === "url" && { websiteUrl }),
+          ...(type === "video" && { ytVideoUrl }),
+          numParticipants,
+          factsCount,
+          rewardPerScore: rewardPerScoreInWei.toString(),
+          creatorWallet: walletAddress,
+          totalCost: totalCost.toString(),
+          difficulty,
+        };
+        headers = { "Content-Type": "application/json" };
+      }
 
-      const quizId = response.data.quizId;
-      setQuizId(quizId);
+      const response = await axios.post(config.endpoint, dataToSubmit, { headers });
 
-      console.log(quizId);
-
-      console.log(CONTRACT_ADDRESS);
+      setFactCheckCreated(true);
+      const factCheckId = response.data.factCheckId;
+      setFactCheckId(factCheckId);
 
       if (authenticated && walletAddress) {
         const signer = await getContractSigner();
 
-        // Check balance before transaction
         const balance = await signer.getBalance();
         const requiredAmount = ethers.BigNumber.from(totalCost.toString());
+
+        console.log('💰 Wallet balance:', ethers.utils.formatEther(balance), 'STT');
+        console.log('💸 Required amount:', ethers.utils.formatEther(requiredAmount), 'STT');
+
         if (balance.lt(requiredAmount)) {
           const shortfall = ethers.utils.formatEther(requiredAmount.sub(balance));
           toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
@@ -190,38 +317,45 @@ const VideoToQuiz = () => {
         const budget = ethers.BigNumber.from(totalCost.toString());
 
         const tx = await contract.createGame({ value: budget });
-
         const receipt = await tx.wait();
         const gameId = receipt.events.find(
           (event) => event.event === "GameCreated"
         ).args.gameId;
 
         console.log("New Game ID:", gameId.toString());
-        await axios.put(`/api/quiz/update/${quizId}`, { gameId });
+        await axios.put(`/api/fact-check/update/${factCheckId}`, { gameId });
 
-        toast.success("Quiz successfully created.");
+        toast.success("Fact checking game created successfully");
+
+        // Reset form
         setFormData({
           creatorName: "",
-          ytVideoUrl: "",
+          topic: type === "prompt" ? "" : undefined,
+          websiteUrl: type === "url" ? "" : undefined,
+          ytVideoUrl: type === "video" ? "" : undefined,
           numParticipants: "",
-          questionCount: "",
+          factsCount: "",
           rewardPerScore: "",
+          difficulty: "medium",
         });
+
+        if (type === "pdf") {
+          setPdfFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }
 
         setLoading(false);
         setOpen(true);
       } else {
-        toast.error("Please connect your wallet to continue");
+        toast.error("Please connect your wallet to continue.");
+        connectWallet();
       }
     } catch (error) {
-      console.error(
-        error.response?.data?.message ||
-          "An error occurred while creating the quiz"
-      );
-      toast.error(
-        error.response?.data?.message ||
-          "An error occurred while creating the quiz"
-      );
+      console.error("Full error object:", error);
+      const errorMessage = error.response?.data?.message || error.message || "An error occurred while creating the fact check game";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -240,37 +374,35 @@ const VideoToQuiz = () => {
     const svgUrl = URL.createObjectURL(svgBlob);
     const downloadLink = document.createElement("a");
     downloadLink.href = svgUrl;
-    downloadLink.download = `quiz-${quizId}.svg`;
+    downloadLink.download = `fact-check-${factCheckId}.svg`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${baseUrl}/quiz/${quizId}`);
+    navigator.clipboard.writeText(`${baseUrl}/fact-check/${factCheckId}`);
     toast.success("Link copied to clipboard");
   };
 
-  const handleStartQuiz = async () => {
+  const handleStartGame = async () => {
     try {
-      await axios.put(`/api/quiz/update/${quizId}`, { isPublic: true });
+      await axios.put(`/api/fact-check/update/${factCheckId}`, { isPublic: true });
       setIsPublic(true);
-      toast.success("Quiz has started");
+      toast.success("Game has started");
     } catch (error) {
-      toast.error("Failed to start the quiz");
+      toast.error("Failed to start the game");
       console.log(error);
     }
   };
 
-  const handleStopQuiz = async () => {
+  const handleStopGame = async () => {
     setStartDisabled(true);
     try {
-      const response = await axios.put(`/api/quiz/update/${quizId}`, {
+      const response = await axios.put(`/api/fact-check/update/${factCheckId}`, {
         isPublic: false,
         isFinished: true,
       });
-
-      console.log(response.data);
 
       const { gameId, participants } = response.data;
       let rewards = response.data.rewards;
@@ -298,8 +430,10 @@ const VideoToQuiz = () => {
             signer
           );
 
-          rewards = rewards.map((reward) => reward / 1000000000000000000);
-          rewards = rewards.map((reward) =>
+          const normalizedRewards = rewards.map(
+            (reward) => reward / 1000000000000000000
+          );
+          rewards = normalizedRewards.map((reward) =>
             ethers.utils.parseEther(reward.toString())
           );
 
@@ -311,16 +445,17 @@ const VideoToQuiz = () => {
           setStartDisabled(false);
           setIsPublic(false);
           setCloseDisabled(true);
-          setQuizCreated(false);
+          setFactCheckCreated(false);
         } catch (error) {
           console.error("Error ending the game:", error);
           toast.error("An error occurred while ending the game");
         }
       } else {
         toast.error("Please connect your wallet to continue.");
+        connectWallet();
       }
     } catch (error) {
-      toast.error("Failed to end the quiz");
+      toast.error("Failed to end the game");
       console.error(error);
     } finally {
       setStartDisabled(false);
@@ -329,7 +464,7 @@ const VideoToQuiz = () => {
 
   const fetchParticipants = async () => {
     try {
-      const response = await axios.get(`/api/quiz/leaderboards/${quizId}`);
+      const response = await axios.get(`/api/fact-check/leaderboards/${factCheckId}`);
       setParticipants(response.data.participants || []);
     } catch (error) {
       console.error("Failed to fetch participants:", error);
@@ -337,25 +472,157 @@ const VideoToQuiz = () => {
   };
 
   useEffect(() => {
-    if (quizCreated && quizId) {
+    if (factCheckCreated && factCheckId) {
       fetchParticipants();
       const interval = setInterval(fetchParticipants, 1000);
       return () => clearInterval(interval);
     }
-  }, [quizId, quizCreated]);
+  }, [factCheckId, factCheckCreated]);
+
+  const config = getFactCheckConfig();
+  const IconComponent = config.icon;
+
+  // Show ConnectWallet component if wallet is not connected
+  if (!authenticated || !walletAddress) {
+    return (
+      <ConnectWallet
+        connectWallet={connectWallet}
+        icon={IconComponent}
+        title={`Connect Wallet to ${config.title}`}
+        description="Please connect your wallet to create fact checking games and manage rewards"
+      />
+    );
+  }
+
+  const renderTypeSpecificFields = () => {
+    switch (type) {
+      case "prompt":
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-white text-sm font-medium flex items-center gap-2">
+                <Brain size={16} />
+                Topic
+              </label>
+              <input
+                type="text"
+                name="topic"
+                value={formData.topic}
+                onChange={handleChange}
+                className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+                placeholder="Enter topic (e.g., 'Space', 'History')"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-white text-sm font-medium">
+                Difficulty
+              </label>
+              <select
+                name="difficulty"
+                value={formData.difficulty}
+                onChange={handleChange}
+                className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                <option value="easy" className="bg-red-900">
+                  Easy
+                </option>
+                <option value="medium" className="bg-red-900">
+                  Medium
+                </option>
+                <option value="hard" className="bg-red-900">
+                  Hard
+                </option>
+              </select>
+            </div>
+          </div>
+        );
+
+      case "url":
+        return (
+          <div className="space-y-2">
+            <label className="text-white text-sm font-medium flex items-center gap-2">
+              <Globe size={16} />
+              Website URL
+            </label>
+            <input
+              type="url"
+              name="websiteUrl"
+              value={formData.websiteUrl}
+              onChange={handleChange}
+              className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-md md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+              placeholder="e.g., https://example.com/info"
+              required
+            />
+          </div>
+        );
+
+      case "video":
+        return (
+          <div className="space-y-2">
+            <label className="text-white text-sm font-medium flex items-center gap-2">
+              <Video size={16} />
+              Youtube Video URL
+            </label>
+            <input
+              type="url"
+              name="ytVideoUrl"
+              value={formData.ytVideoUrl}
+              onChange={handleChange}
+              className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+              placeholder="e.g., https://www.youtube.com/watch?v=gmaKoSjL0BU"
+              required
+            />
+          </div>
+        );
+
+      case "pdf":
+        return (
+          <div className="space-y-2">
+            <label className="text-white text-sm font-medium flex items-center gap-2">
+              <FileText size={16} />
+              PDF Document
+            </label>
+            <div className="relative">
+              <input
+                id="pdf-upload"
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                required
+                ref={fileInputRef}
+              />
+              <label
+                htmlFor="pdf-upload"
+                className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white flex items-center justify-center gap-2 cursor-pointer hover:bg-white/20 transition-colors"
+              >
+                <Upload size={20} />
+                {pdfFile ? pdfFile.name : "Choose PDF File"}
+              </label>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div
-      className="flex items-center justify-center"
+      className="flex items-center justify-center px-4"
       style={{ height: "calc(100vh - 6rem)" }}
     >
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto w-full">
         <div className="text-center space-y-4 mb-8">
           <h1 className="text-2xl md:text-5xl font-bold text-white">
-            Create Quiz from &nbsp;
+            {config.title.split(config.highlight)[0]}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">
-              Youtube Video
+              {config.highlight}
             </span>
+            {config.title.split(config.highlight)[1]}
           </h1>
         </div>
 
@@ -397,16 +664,16 @@ const VideoToQuiz = () => {
 
                 <div className="space-y-2">
                   <label className="text-white text-sm font-medium flex items-center gap-2">
-                    <HelpCircle size={16} />
-                    Questions
+                    <BookOpen size={16} />
+                    Facts
                   </label>
                   <input
                     type="number"
-                    name="questionCount"
-                    value={formData.questionCount}
+                    name="factsCount"
+                    value={formData.factsCount}
                     onChange={handleChange}
                     className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
-                    placeholder="Number of questions"
+                    placeholder="Number of facts"
                     min="1"
                     max="30"
                     required
@@ -425,27 +692,13 @@ const VideoToQuiz = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
                     placeholder="Reward per score"
-                    min="0.001"
+                    min="0.0001"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-white text-sm font-medium flex items-center gap-2">
-                  <Globe size={16} />
-                  Youtube Video URL
-                </label>
-                <input
-                  type="url"
-                  name="ytVideoUrl"
-                  value={formData.ytVideoUrl}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-lg md:rounded-xl text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
-                  placeholder="e.g., https://www.youtube.com/watch?v=gmaKoSjL0BU"
-                  required
-                />
-              </div>
+              {renderTypeSpecificFields()}
 
               <button
                 type="submit"
@@ -456,8 +709,8 @@ const VideoToQuiz = () => {
                   <CircularProgress size={24} color="inherit" />
                 ) : (
                   <>
-                    <Globe size={20} />
-                    Generate Quiz
+                    <IconComponent size={20} />
+                    Create Game
                   </>
                 )}
               </button>
@@ -484,25 +737,27 @@ const VideoToQuiz = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="flex flex-col items-center gap-6" ref={qrRef}>
                 <h2 className="text-xl md:text-2xl font-bold text-white">
-                  Quiz ID: <span className="text-red-400">{quizId}</span>
+                  Game ID: <span className="text-red-400">{factCheckId}</span>
                 </h2>
                 <div className="bg-white p-4 rounded-xl">
                   <QRCodeSVG
-                    value={`${baseUrl}/quiz/${quizId}`}
+                    value={`${baseUrl}/fact-check/${factCheckId}`}
                     className="w-48 h-48 sm:w-48 sm:h-48 md:w-64 md:h-64 lg:w-72 lg:h-72"
                   />
                 </div>
                 <TextField
-                  value={`${baseUrl}/quiz/${quizId}`}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton onClick={handleCopy}>
-                          <Copy className="text-red-400" size={20} />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
+                  value={`${baseUrl}/fact-check/${factCheckId}`}
+                  slotProps={{
+                    input: {
+                      readOnly: true,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={handleCopy}>
+                            <Copy className="text-red-400" size={20} />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
                   }}
                   fullWidth
                   sx={{
@@ -524,7 +779,7 @@ const VideoToQuiz = () => {
                       key={participant.walletAddress}
                       className="flex justify-between items-center py-2 px-4 border-b border-white/10 text-white"
                     >
-                      <span>{participant.user.name}</span>
+                      <span>{participant.participantName}</span>
                       <span className="font-mono">
                         {participant.score !== null ? participant.score : "N/A"}
                       </span>
@@ -547,20 +802,20 @@ const VideoToQuiz = () => {
               Close
             </Button>
             <Button
-              onClick={handleStartQuiz}
+              onClick={handleStartGame}
               disabled={isPublic || loading || startDisabled}
               color="white"
               className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg"
             >
-              Start Quiz
+              Start Game
             </Button>
             <Button
-              onClick={handleStopQuiz}
+              onClick={handleStopGame}
               disabled={!isPublic || loading}
               color="white"
               className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg"
             >
-              Stop Quiz
+              Stop Game
             </Button>
           </DialogActions>
         </Dialog>
@@ -569,4 +824,4 @@ const VideoToQuiz = () => {
   );
 };
 
-export default VideoToQuiz;
+export default FactCheckCreation;

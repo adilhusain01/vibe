@@ -1,6 +1,12 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const FactCheck = require("../models/FactCheck");
 const ParticipantFacts = require("../models/ParticipantFacts");
+const pdfParse = require("pdf-parse");
+const { google } = require("googleapis");
+const youtube = google.youtube("v3");
+const { Supadata } = require('@supadata/js');
+const { Firecrawl } = require("@mendable/firecrawl-js");
+const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
 
 class FactGenerator {
   constructor() {
@@ -110,7 +116,75 @@ class FactGenerator {
   }
 }
 
-exports.generateFactChallenge = async (req, res) => {
+// Helper functions for different content types
+const extractVideoId = (url) => {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes("youtube.com")) {
+      return urlObj.searchParams.get("v");
+    } else if (urlObj.hostname.includes("youtu.be")) {
+      return urlObj.pathname.slice(1);
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const getVideoDetails = async (videoId) => {
+  try {
+    const response = await youtube.videos.list({
+      key: process.env.YOUTUBE_API_KEY,
+      part: ["snippet"],
+      id: [videoId],
+    });
+
+    if (response.data.items.length === 0) {
+      return null;
+    }
+
+    return response.data.items[0].snippet;
+  } catch (error) {
+    return null;
+  }
+};
+
+const getTranscriptFromAPI = async (videoId) => {
+  try {
+    const supadata = new Supadata({
+      apiKey: process.env.SUPADATA_API_KEY,
+    });
+
+    const transcriptData = await supadata.youtube.transcript({
+      videoId: videoId,
+    });
+
+    if (!transcriptData || !transcriptData.content || transcriptData.content.length === 0) {
+      return null;
+    }
+
+    return transcriptData.content.map(item => item.text).join(' ');
+  } catch (error) {
+    return null;
+  }
+};
+
+// Common fact check creation logic
+const createFactCheckLogic = async (factCheckData, creatorWallet, creatorName) => {
+  const factCheckId = Math.random().toString(36).substring(2, 7);
+
+  const factCheck = new FactCheck({
+    ...factCheckData,
+    factCheckId,
+    creatorWallet,
+    creatorName,
+  });
+
+  await factCheck.save();
+  return factCheck;
+};
+
+exports.createFactCheckByPrompt = async (req, res) => {
   try {
     const {
       topic,
@@ -142,6 +216,178 @@ exports.generateFactChallenge = async (req, res) => {
     res.status(500).json({
       error: "Failed to generate facts",
       details: error.message,
+    });
+  }
+};
+
+exports.createFactCheckByPdf = async (req, res) => {
+  const {
+    creatorName,
+    creatorWallet,
+    numParticipants,
+    factsCount,
+    rewardPerScore,
+    totalCost,
+    difficulty = "medium",
+  } = req.body;
+  const pdfFile = req.file;
+
+  if (!pdfFile) {
+    return res.status(400).json({ error: "No PDF file uploaded." });
+  }
+
+  try {
+    const pdfData = await pdfParse(pdfFile.buffer);
+    const factGenerator = new FactGenerator();
+
+    const factCheck = await factGenerator.generateFacts(
+      pdfData.text,
+      difficulty,
+      creatorName,
+      creatorWallet,
+      numParticipants,
+      totalCost,
+      rewardPerScore,
+      factsCount,
+      false // isPublic initially false
+    );
+
+    if (!factCheck || !factCheck.facts || factCheck.facts.length === 0) {
+      return res.status(400).json({
+        error: "Failed to generate valid facts from the PDF content",
+      });
+    }
+
+    res.status(201).json({ factCheckId: factCheck.factCheckId });
+  } catch (err) {
+    console.error("Error creating fact check from PDF:", err);
+    res.status(500).json({ error: "Failed to create fact check. " + err.message });
+  }
+};
+
+exports.createFactCheckByURL = async (req, res) => {
+  const {
+    creatorName,
+    creatorWallet,
+    websiteUrl,
+    numParticipants,
+    factsCount,
+    rewardPerScore,
+    totalCost,
+    difficulty = "medium",
+  } = req.body;
+
+  try {
+    console.log("🌐 Scraping URL with Firecrawl SDK:", websiteUrl);
+
+    const doc = await firecrawl.scrape(websiteUrl, {
+      formats: ['markdown'],
+      onlyMainContent: true,
+      removeBase64Images: true,
+      blockAds: true,
+      timeout: 30000,
+    });
+
+    if (!doc || !doc.markdown) {
+      return res.status(400).json({
+        error: "Failed to extract content from the website",
+      });
+    }
+
+    const websiteContent = doc.markdown;
+
+    if (!websiteContent || websiteContent.length < 100) {
+      return res.status(400).json({
+        error: "Could not extract sufficient content from the provided URL",
+      });
+    }
+
+    const factGenerator = new FactGenerator();
+    const factCheck = await factGenerator.generateFacts(
+      websiteContent,
+      difficulty,
+      creatorName,
+      creatorWallet,
+      numParticipants,
+      totalCost,
+      rewardPerScore,
+      factsCount,
+      false // isPublic initially false
+    );
+
+    if (!factCheck || !factCheck.facts || factCheck.facts.length === 0) {
+      return res.status(400).json({
+        error: "Failed to generate valid facts from the website content",
+      });
+    }
+
+    res.status(201).json({ factCheckId: factCheck.factCheckId });
+  } catch (err) {
+    console.error("Error creating fact check from URL:", err);
+    res.status(400).json({
+      error: err.message || "Failed to create fact check from URL",
+    });
+  }
+};
+
+exports.createFactCheckByVideo = async (req, res) => {
+  const {
+    creatorName,
+    creatorWallet,
+    ytVideoUrl,
+    numParticipants,
+    factsCount,
+    rewardPerScore,
+    totalCost,
+    difficulty = "medium",
+  } = req.body;
+
+  try {
+    const videoId = extractVideoId(ytVideoUrl);
+    if (!videoId) {
+      return res.status(400).json({
+        error: "Invalid YouTube URL. Please provide a valid YouTube video URL.",
+      });
+    }
+
+    const videoDetails = await getVideoDetails(videoId);
+    if (!videoDetails) {
+      return res.status(400).json({
+        error: "Could not fetch video details. Please check if the video exists.",
+      });
+    }
+
+    const transcript = await getTranscriptFromAPI(videoId);
+    if (!transcript) {
+      return res.status(400).json({
+        error: "Could not extract transcript from the video.",
+      });
+    }
+
+    const factGenerator = new FactGenerator();
+    const factCheck = await factGenerator.generateFacts(
+      transcript,
+      difficulty,
+      creatorName,
+      creatorWallet,
+      numParticipants,
+      totalCost,
+      rewardPerScore,
+      factsCount,
+      false // isPublic initially false
+    );
+
+    if (!factCheck || !factCheck.facts || factCheck.facts.length === 0) {
+      return res.status(400).json({
+        error: "Failed to generate valid facts from the video content",
+      });
+    }
+
+    res.status(201).json({ factCheckId: factCheck.factCheckId });
+  } catch (err) {
+    console.error("Error creating fact check from video:", err);
+    res.status(400).json({
+      error: err.message || "Failed to create fact check from video",
     });
   }
 };

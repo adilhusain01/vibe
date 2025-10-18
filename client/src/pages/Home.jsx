@@ -61,7 +61,7 @@ const Home = () => {
             </Link> */}
 
             <Link
-              to="/fact-check"
+              to="/fact-check-options"
               className="group bg-white/10 backdrop-blur-lg rounded-lg md:rounded-xl p-6 md:p-8 lg:p-10 border border-white/20 hover:bg-white/20 transition-all"
             >
               <div className="flex flex-col items-center space-y-2 md:space-y-3">

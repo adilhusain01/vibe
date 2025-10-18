@@ -5,19 +5,17 @@ import PrivyAuthProvider from "./context/PrivyAuthContext";
 
 const Layout = lazy(() => import("./components/Layout"));
 const Home = lazy(() => import("./pages/Home"));
-const PdfToQuiz = lazy(() => import("./pages/PdfToQuiz"));
-const PromptToQuiz = lazy(() => import("./pages/PromptToQuiz"));
+const QuizCreation = lazy(() => import("./pages/QuizCreation"));
+const FactCheckCreation = lazy(() => import("./pages/FactCheckCreation"));
+const FactCheckOptions = lazy(() => import("./pages/FactCheckOptions"));
 const LeaderBoards = lazy(() => import("./pages/LeaderBoards"));
 const Quiz = lazy(() => import("./pages/Quiz"));
-const URLToQuiz = lazy(() => import("./pages/URLToQuiz"));
-const VideoToQuiz = lazy(() => import("./pages/VideoToQuiz"));
 const Typing = lazy(() => import("./pages/Typing"));
 const MemoryChallenge = lazy(() => import("./pages/MemoryChallenge"));
 const QuizOptions = lazy(() => import("./pages/QuizOptions"));
 const BrokenLink = lazy(() => import("./pages/BrokenLink"));
 const ServerError = lazy(() => import("./pages/ServerError"));
 const FactCheck = lazy(() => import("./pages/FactCheck"));
-const FactCheckingGame = lazy(() => import("./pages/FactCheckingGame"));
 const FactCheckLeaderboards = lazy(() =>
 import("./pages/FactCheckLeaderboards")
 );
@@ -111,10 +109,8 @@ const App = () => {
       <Routes>
       <Route element={<Layout />}>
       <Route path="/" element={<Home />} />
-      <Route path="/pdfToQuiz" element={<PdfToQuiz />} />
-      <Route path="/promptToQuiz" element={<PromptToQuiz />} />
-      <Route path="/urlToQuiz" element={<URLToQuiz />} />
-      <Route path="/videoToQuiz" element={<VideoToQuiz />} />
+      <Route path="/quiz-creation/:type" element={<QuizCreation />} />
+      <Route path="/fact-check-creation/:type" element={<FactCheckCreation />} />
       <Route path="/quiz/:id" element={<Quiz />} />
       <Route path="/leaderboards/:id" element={<LeaderBoards />} />
       <Route
@@ -123,13 +119,13 @@ const App = () => {
       />
       <Route path="/typing" element={<Typing />} />
       <Route path="/memoryChallenge" element={<MemoryChallenge />} />
-      <Route path="/fact-check" element={<FactCheckingGame />} />
+      <Route path="/fact-check-options" element={<FactCheckOptions />} />
       <Route path="/fact-check/:id" element={<FactCheck />} />
       <Route path="/quiz-options" element={<QuizOptions />} />
       <Route path="/profile" element={<Profile />} />
-      </Route>
       <Route path="/500" element={<ServerError />} />
       <Route path="*" element={<BrokenLink />} />
+      </Route>
       </Routes>
       </Suspense>
       </Router>

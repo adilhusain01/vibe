@@ -1,22 +1,22 @@
 const LoadingSpinner = () => {
   return (
-    <div className='fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50'>
-      <div className='bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl relative overflow-hidden'>
+    <div className='fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50 px-4'>
+      <div className='bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20 shadow-xl relative overflow-hidden'>
         {/* Ambient glow effect */}
         <div className='absolute inset-0 bg-gradient-to-r from-rose-500/20 to-pink-500/20 animate-pulse' />
 
         <div className='relative'>
           {/* Main spinner container */}
-          <div className='spinner-container w-24 h-24 relative'>
+          <div className='spinner-container w-16 h-16 md:w-24 md:h-24 relative'>
             {/* Outer ring */}
             <div
-              className='absolute inset-0 rounded-full border-4 border-transparent border-t-rose-500 animate-spin'
+              className='absolute inset-0 rounded-full border-2 md:border-4 border-transparent border-t-rose-500 animate-spin'
               style={{ animationDuration: '1.5s' }}
             />
 
             {/* Middle ring */}
             <div
-              className='absolute inset-2 rounded-full border-4 border-transparent border-t-pink-500 animate-spin'
+              className='absolute inset-1 md:inset-2 rounded-full border-2 md:border-4 border-transparent border-t-pink-500 animate-spin'
               style={{
                 animationDuration: '1.2s',
                 animationDirection: 'reverse',
@@ -25,13 +25,13 @@ const LoadingSpinner = () => {
 
             {/* Inner ring */}
             <div
-              className='absolute inset-4 rounded-full border-4 border-transparent border-t-rose-400 animate-spin'
+              className='absolute inset-2 md:inset-4 rounded-full border-2 md:border-4 border-transparent border-t-rose-400 animate-spin'
               style={{ animationDuration: '0.9s' }}
             />
 
             {/* Center dot */}
             <div className='absolute inset-0 flex items-center justify-center'>
-              <div className='w-3 h-3 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full animate-pulse' />
+              <div className='w-2 h-2 md:w-3 md:h-3 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full animate-pulse' />
             </div>
           </div>
         </div>

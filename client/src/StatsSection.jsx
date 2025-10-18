@@ -62,10 +62,10 @@ const StatsSection = () => {
         transition={{ duration: 0.6 }}
         className='text-center mb-12'
       >
-        <h2 className='text-3xl md:text-5xl font-bold text-white mb-4'>
+        <h2 className='text-2xl md:text-3xl lg:text-5xl font-bold text-white mb-4'>
           Platform Statistics
         </h2>
-        <p className='text-lg md:text-xl text-red-200'>
+        <p className='text-base md:text-lg lg:text-xl text-red-200'>
           Empowering learning through interactive quizzes
         </p>
       </motion.div>
@@ -80,22 +80,22 @@ const StatsSection = () => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
-              className='bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl'
+              className='bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20 shadow-xl'
             >
-              <div className='flex flex-col items-center space-y-4'>
+              <div className='flex flex-col items-center space-y-3 md:space-y-4'>
                 <div
-                  className={`w-16 h-16 rounded-full bg-gradient-to-r ${stat.color} flex items-center justify-center`}
+                  className={`w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-r ${stat.color} flex items-center justify-center`}
                 >
-                  <Icon className='text-white' size={32} />
+                  <Icon className='text-white' size={24} />
                 </div>
-                <h3 className='text-2xl md:text-4xl font-bold text-white'>
+                <h3 className='text-xl md:text-2xl lg:text-4xl font-bold text-white'>
                   {stat.value}
                 </h3>
-                <div className='space-y-2 text-center'>
-                  <p className='text-lg md:text-xl font-semibold text-white'>
+                <div className='space-y-1 md:space-y-2 text-center'>
+                  <p className='text-base md:text-lg lg:text-xl font-semibold text-white'>
                     {stat.label}
                   </p>
-                  <p className='text-red-200'>{stat.description}</p>
+                  <p className='text-sm md:text-base text-red-200'>{stat.description}</p>
                 </div>
               </div>
             </motion.div>
