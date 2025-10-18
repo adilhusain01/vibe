@@ -61,5 +61,12 @@ quizSchema.pre('save', function(next) {
     next();
 });
 
+// Performance indexes
+quizSchema.index({ quizId: 1 }, { unique: true }); // Primary lookup field
+quizSchema.index({ creatorWallet: 1 }); // Creator queries
+quizSchema.index({ isPublic: 1, isFinished: 1 }); // Public quiz filtering
+quizSchema.index({ createdAt: -1 }); // Recent quizzes
+quizSchema.index({ "participants.user": 1 }); // Participant lookups
+quizSchema.index({ gameId: 1 }, { sparse: true }); // Blockchain game ID
 
 module.exports = mongoose.model("Quiz", quizSchema);

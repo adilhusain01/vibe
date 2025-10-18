@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     unique: true,
-    sparse: true 
+    sparse: true
   },
   name: {
     type: String
@@ -41,5 +41,13 @@ const userSchema = new mongoose.Schema({
     ref: 'Quiz'
   }]
 });
+
+// Performance indexes
+userSchema.index({ walletAddress: 1 }, { unique: true }); // Primary lookup field
+userSchema.index({ userId: 1 }, { unique: true }); // User ID lookups
+userSchema.index({ email: 1 }, { sparse: true }); // Email lookups (sparse for optional field)
+userSchema.index({ authType: 1 }); // Auth type filtering
+userSchema.index({ createdAt: -1 }); // Recent users
+userSchema.index({ lastLogin: -1 }); // Active users
 
 module.exports = mongoose.model("User", userSchema);

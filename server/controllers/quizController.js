@@ -11,6 +11,8 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const { Firecrawl } = require("@mendable/firecrawl-js");
 const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
+const { withCircuitBreaker } = require("../middleware/circuitBreaker");
+const { invalidateCache } = require("../middleware/cache");
 
 const extractQuestions = (responseText) => {
   const patterns = [
@@ -80,52 +82,71 @@ Question 2: [Next Question Text]
 
 
 const createQuizLogic = async (quizData, creatorWallet, creatorName) => {
-  let user = await User.findOne({ walletAddress: creatorWallet });
-  if (!user) {
-    console.log(`Creating new user for wallet: ${creatorWallet}`);
-    user = new User({
-      userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), 
-      walletAddress: creatorWallet,
-      name: creatorName || 'Unnamed Creator', 
-      authType: 'wallet'
-    });
-    await user.save();
-  } else {
-      if (creatorName && user.name !== creatorName) {
-          user.name = creatorName;
-          await user.save();
+  // Use upsert operation to handle user creation/update in one operation
+  const user = await User.findOneAndUpdate(
+    { walletAddress: creatorWallet },
+    {
+      $setOnInsert: {
+        userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        walletAddress: creatorWallet,
+        authType: 'wallet',
+        quizzesCreated: [],
+        quizzesTaken: []
+      },
+      $set: {
+        name: creatorName || 'Unnamed Creator',
+        lastLogin: new Date()
       }
-  }
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
 
   const quizId = Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
 
   const quiz = new Quiz({
     ...quizData,
     quizId,
-    creatorWallet: user.walletAddress, 
+    creatorWallet: user.walletAddress,
     creatorName: user.name,
-    creator: user._id, 
-    sId: Date.now(), 
+    creator: user._id,
+    sId: Date.now(),
   });
 
-  await quiz.save();
+  // Use session for atomic operations
+  const session = await Quiz.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await quiz.save({ session });
 
-  user.quizzesCreated.push(quiz._id);
-  await user.save();
+      // Add quiz to user's created quizzes atomically
+      await User.updateOne(
+        { _id: user._id },
+        { $addToSet: { quizzesCreated: quiz._id } },
+        { session }
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
 
-  return quiz; 
+  return quiz;
 };
 
 async function generateQuestionsWithGemini(content, questionCount) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  return await withCircuitBreaker.gemini(async () => {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const prompt = QUIZ_GENERATION_PROMPT(content, questionCount);
 
-  const prompt = QUIZ_GENERATION_PROMPT(content, questionCount);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-
-  return extractQuestions(text);
+    return extractQuestions(text);
+  });
 }
 
 const extractVideoId = (url) => {
@@ -143,7 +164,7 @@ const extractVideoId = (url) => {
 };
 
 const getVideoDetails = async (videoId) => {
-  try {
+  return await withCircuitBreaker.youtube(async () => {
     const response = await youtube.videos.list({
       key: process.env.YOUTUBE_API_KEY,
       part: ["snippet"],
@@ -155,13 +176,11 @@ const getVideoDetails = async (videoId) => {
     }
 
     return response.data.items[0].snippet;
-  } catch (error) {
-    return null;
-  }
+  });
 };
 
 const getTranscriptFromAPI = async (videoId) => {
-  try {
+  return await withCircuitBreaker.supadata(async () => {
     const supadata = new Supadata({
       apiKey: process.env.SUPADATA_API_KEY,
     });
@@ -175,9 +194,7 @@ const getTranscriptFromAPI = async (videoId) => {
     }
 
     return transcriptData.content.map(item => item.text).join(' ');
-  } catch (error) {
-    return null;
-  }
+  });
 };
 
 
