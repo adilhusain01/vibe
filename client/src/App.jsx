@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { PrivyProvider } from '@privy-io/react-auth';
 import PrivyAuthProvider from "./context/PrivyAuthContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const Layout = lazy(() => import("./components/Layout"));
 const Home = lazy(() => import("./pages/Home"));
@@ -101,31 +102,58 @@ const App = () => {
         }
       }}
     >
-      <PrivyAuthProvider>
-      <Router>
-      <Suspense fallback={<LoadingSpinner />}>
-      <Routes>
-      <Route element={<Layout />}>
-      <Route path="/" element={<Home />} />
-      <Route path="/quiz-creation/:type" element={<QuizCreation />} />
-      <Route path="/fact-check-creation/:type" element={<FactCheckCreation />} />
-      <Route path="/quiz/:id" element={<Quiz />} />
-      <Route path="/leaderboards/:id" element={<LeaderBoards />} />
-      <Route
-      path="/fact-check-leaderboards/:id"
-      element={<FactCheckLeaderboards />}
-      />
-      <Route path="/fact-check-options" element={<FactCheckOptions />} />
-      <Route path="/fact-check/:id" element={<FactCheck />} />
-      <Route path="/quiz-options" element={<QuizOptions />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/500" element={<ServerError />} />
-      <Route path="*" element={<BrokenLink />} />
-      </Route>
-      </Routes>
-      </Suspense>
-      </Router>
-      </PrivyAuthProvider>
+      <ErrorBoundary>
+        <PrivyAuthProvider>
+          <Router>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/quiz-creation/:type" element={
+                    <ErrorBoundary>
+                      <QuizCreation />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/fact-check-creation/:type" element={
+                    <ErrorBoundary>
+                      <FactCheckCreation />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/quiz/:id" element={
+                    <ErrorBoundary>
+                      <Quiz />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/leaderboards/:id" element={
+                    <ErrorBoundary>
+                      <LeaderBoards />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/fact-check-leaderboards/:id" element={
+                    <ErrorBoundary>
+                      <FactCheckLeaderboards />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/fact-check-options" element={<FactCheckOptions />} />
+                  <Route path="/fact-check/:id" element={
+                    <ErrorBoundary>
+                      <FactCheck />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/quiz-options" element={<QuizOptions />} />
+                  <Route path="/profile" element={
+                    <ErrorBoundary>
+                      <Profile />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/500" element={<ServerError />} />
+                  <Route path="*" element={<BrokenLink />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </Router>
+        </PrivyAuthProvider>
+      </ErrorBoundary>
     </PrivyProvider>
   );
 };

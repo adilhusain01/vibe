@@ -21,7 +21,11 @@ const {
   validateContentLength,
   validateNumbers,
   validateWalletAddress,
+  validateWalletAddressEnhanced,
   validateURL,
+  validateGameId,
+  validateAnswers,
+  sanitizeInput,
   CONTENT_LIMITS
 } = require("../middleware/validation");
 
@@ -44,13 +48,15 @@ const upload = multer({
 
 // Routes with appropriate middleware
 router.get('/leaderboards/:quizId',
+  validateGameId,
   cacheLeaderboard(60), // Cache for 1 minute
   getLeaderBoards
 );
 
 router.post('/verify/:quizId',
   rateLimiters.general,
-  validateWalletAddress,
+  validateGameId,
+  validateWalletAddressEnhanced,
   cacheQuiz(300), // Cache for 5 minutes
   getQuiz
 );
@@ -58,8 +64,9 @@ router.post('/verify/:quizId',
 router.post('/create/prompt',
   rateLimiters.creation,
   rateLimiters.externalAPI,
-  validateWalletAddress,
+  validateWalletAddressEnhanced,
   validateContentLength('prompt', CONTENT_LIMITS.PROMPT),
+  sanitizeInput(['prompt', 'creatorName']),
   validateNumbers(['numParticipants', 'questionCount', 'rewardPerScore', 'totalCost']),
   createQuizByPrompt
 );
@@ -70,7 +77,8 @@ router.post('/create/pdf',
   rateLimiters.externalAPI,
   upload.single('pdf'),
   validateFileUpload('PDF'),
-  validateWalletAddress,
+  validateWalletAddressEnhanced,
+  sanitizeInput(['creatorName']),
   validateNumbers(['numParticipants', 'questionCount', 'rewardPerScore', 'totalCost']),
   createQuizByPdf
 );
@@ -78,8 +86,9 @@ router.post('/create/pdf',
 router.post('/create/url',
   rateLimiters.creation,
   rateLimiters.externalAPI,
-  validateWalletAddress,
+  validateWalletAddressEnhanced,
   validateURL,
+  sanitizeInput(['creatorName']),
   validateNumbers(['numParticipants', 'questionCount', 'rewardPerScore', 'totalCost']),
   createQuizByURL
 );
@@ -87,26 +96,31 @@ router.post('/create/url',
 router.post('/create/video',
   rateLimiters.creation,
   rateLimiters.externalAPI,
-  validateWalletAddress,
+  validateWalletAddressEnhanced,
   validateURL,
+  sanitizeInput(['creatorName']),
   validateNumbers(['numParticipants', 'questionCount', 'rewardPerScore', 'totalCost']),
   createQuizByVideo
 );
 
 router.post('/join/:quizId',
   rateLimiters.general,
-  validateWalletAddress,
+  validateGameId,
+  validateWalletAddressEnhanced,
+  sanitizeInput(['participantName']),
   joinQuiz
 );
 
 router.post('/submit',
   rateLimiters.general,
-  validateWalletAddress,
+  validateWalletAddressEnhanced,
+  validateAnswers,
   submitQuiz
 );
 
 router.put('/update/:quizId',
   rateLimiters.general,
+  validateGameId,
   updateQuiz
 );
 

@@ -24,6 +24,10 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
+// Import and apply additional security middleware
+const { setSecurityHeaders, csrfTokenEndpoint, optionalCSRF } = require('./middleware/csrf');
+app.use(setSecurityHeaders);
+
 // Enable compression for responses
 app.use(compression());
 
@@ -49,6 +53,9 @@ app.use(logger);
 // Apply general rate limiting to all routes
 app.use(rateLimiters.general);
 
+// CSRF token endpoint
+app.get('/api/csrf-token', csrfTokenEndpoint);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
@@ -70,10 +77,10 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
-// API routes with appropriate rate limiting
-app.use("/api/quiz", quizRoutes);
-app.use("/api/fact-check", require("./routes/factCheckingRoutes"));
-app.use("/api/users", userRoutes);
+// API routes with appropriate rate limiting and optional CSRF
+app.use("/api/quiz", optionalCSRF, quizRoutes);
+app.use("/api/fact-check", optionalCSRF, require("./routes/factCheckingRoutes"));
+app.use("/api/users", optionalCSRF, userRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

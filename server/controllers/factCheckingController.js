@@ -2,6 +2,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const FactCheck = require("../models/FactCheck");
 const ParticipantFacts = require("../models/ParticipantFacts");
 const mongoose = require("mongoose");
+const { generateGameId } = require("../utils/secureId");
 const pdfParse = require("pdf-parse");
 const { google } = require("googleapis");
 const youtube = google.youtube("v3");
@@ -73,7 +74,7 @@ class FactGenerator {
 
       const facts = JSON.parse(cleanedResponseText);
 
-      const factCheckId = Math.random().toString(36).substring(2, 7);
+      const factCheckId = generateGameId();
 
       const factCheck = new FactCheck({
         creatorName,
@@ -173,7 +174,7 @@ const getTranscriptFromAPI = async (videoId) => {
 
 // Common fact check creation logic
 const createFactCheckLogic = async (factCheckData, creatorWallet, creatorName) => {
-  const factCheckId = Math.random().toString(36).substring(2, 7);
+  const factCheckId = generateGameId();
 
   const factCheck = new FactCheck({
     ...factCheckData,

@@ -3,6 +3,7 @@ const Quiz = require("../models/Quiz");
 const User = require("../models/User");
 const pdfParse = require("pdf-parse");
 const mongoose = require("mongoose");
+const { generateGameId, generateUserId } = require("../utils/secureId");
 const cheerio = require("cheerio");
 const { google } = require("googleapis");
 const youtube = google.youtube("v3");
@@ -88,7 +89,7 @@ const createQuizLogic = async (quizData, creatorWallet, creatorName) => {
     { walletAddress: creatorWallet },
     {
       $setOnInsert: {
-        userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        userId: generateUserId(),
         walletAddress: creatorWallet,
         authType: 'wallet',
         quizzesCreated: [],
@@ -106,7 +107,7 @@ const createQuizLogic = async (quizData, creatorWallet, creatorName) => {
     }
   );
 
-  const quizId = Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
+  const quizId = generateGameId();
 
   const quiz = new Quiz({
     ...quizData,
@@ -278,7 +279,7 @@ exports.createQuizByPdf = async (req, res) => {
       });
     }
 
-    const quizId = Math.random().toString(36).substring(2, 7);
+    const quizId = generateGameId();
 
     const quiz = new Quiz({
       quizId,
@@ -358,7 +359,7 @@ exports.createQuizByURL = async (req, res) => {
     }
 
     console.log("💾 Creating quiz in database...");
-    const quizId = Math.random().toString(36).substring(2, 7);
+    const quizId = generateGameId();
     const quiz = new Quiz({
       quizId,
       creatorName,
@@ -425,7 +426,7 @@ exports.createQuizByVideo = async (req, res) => {
       });
     }
 
-    const quizId = Math.random().toString(36).substring(2, 7);
+    const quizId = generateGameId();
     const quiz = new Quiz({
       quizId,
       creatorName,
@@ -578,7 +579,7 @@ exports.joinQuiz = async (req, res) => {
     let user = await User.findOne({ walletAddress }).session(session);
     if (!user) {
       user = new User({
-        userId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        userId: generateUserId(),
         walletAddress,
         name: participantName,
         email,
