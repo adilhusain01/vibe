@@ -30,7 +30,6 @@ import {
   Video,
 } from "lucide-react";
 import ConnectWallet from "../components/ConnectWallet";
-import FactCheckCostDisplay from "../components/FactCheckCostDisplay";
 
 const FactCheckCreation = () => {
   const { type } = useParams();
@@ -59,11 +58,6 @@ const FactCheckCreation = () => {
   const qrRef = useRef();
   const fileInputRef = useRef();
   const [factCheckCreated, setFactCheckCreated] = useState(false);
-  const [costValidation, setCostValidation] = useState({
-    isValid: false,
-    totalCost: '0',
-    error: null
-  });
   const baseUrl = import.meta.env.VITE_CLIENT_URI;
   const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 
@@ -128,9 +122,6 @@ const FactCheckCreation = () => {
   };
 
   // Handle cost calculation updates
-  const handleCostCalculated = (costInfo) => {
-    setCostValidation(costInfo);
-  };
 
   const validateWebsiteUrl = async (url) => {
     if (!url) return { isValid: false, error: "URL is required" };
@@ -474,7 +465,7 @@ const FactCheckCreation = () => {
           );
 
           const normalizedRewards = rewards.map(
-            (reward) => reward / 1000000000000000000
+            (reward) => reward / 1e18
           );
           rewards = normalizedRewards.map((reward) =>
             ethers.utils.parseEther(reward.toString())

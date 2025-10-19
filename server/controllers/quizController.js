@@ -4,7 +4,6 @@ const User = require("../models/User");
 const pdfParse = require("pdf-parse");
 const mongoose = require("mongoose");
 const { generateGameId, generateUserId } = require("../utils/secureId");
-const cheerio = require("cheerio");
 const { google } = require("googleapis");
 const youtube = google.youtube("v3");
 // const { YoutubeTranscript } = require("youtube-transcript"); // Commented out - using Supadata instead
@@ -144,7 +143,7 @@ async function generateQuestionsWithGemini(content, questionCount) {
     const prompt = QUIZ_GENERATION_PROMPT(content, questionCount);
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
 
     return extractQuestions(text);
@@ -767,19 +766,24 @@ exports.submitQuiz = async (req, res) => {
     const indexToLetter = ["A", "B", "C", "D"];
     let score = 0;
 
-
     quiz.questions.forEach((question) => {
        const questionIdStr = question._id.toString();
-       const userAnswerIndex = answers[questionIdStr];
+       const userAnswer = answers[questionIdStr];
 
+       if (userAnswer !== undefined && userAnswer !== null && userAnswer !== "no_answer") {
+          let userAnswerLetter;
 
+          // Handle numeric indices ("0", "1", "2", "3")
+          if (/^[0-3]$/.test(userAnswer)) {
+             userAnswerLetter = indexToLetter[parseInt(userAnswer)];
+          } else {
+             // Handle letter answers directly ("A", "B", "C", "D")
+             userAnswerLetter = userAnswer.toString().toUpperCase();
+          }
 
-       if (userAnswerIndex !== undefined && userAnswerIndex !== null && userAnswerIndex !== "no_answer") {
-          const userAnswerLetter = indexToLetter[userAnswerIndex];
-          if (userAnswerLetter && userAnswerLetter === question.correctAnswer.toUpperCase()) {
+          if (userAnswerLetter === question.correctAnswer.toUpperCase()) {
              score++;
           }
-       } else {
        }
     });
 

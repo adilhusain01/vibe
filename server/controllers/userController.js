@@ -128,8 +128,7 @@ exports.checkLoggedIn = async (req, res) => {
 };
 
 
-exports.logoutUser = async (req, res) => {
-
+exports.logoutUser = async (_req, res) => {
   return res.status(200).json({ success: true });
 };
 

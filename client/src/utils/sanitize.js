@@ -27,8 +27,7 @@ export const sanitizeText = (text, allowBasicFormatting = false) => {
     // Remove all HTML tags
     sanitized = sanitized.replace(/<[^>]*>/g, '');
   } else {
-    // Only allow safe formatting tags
-    const allowedTags = ['b', 'i', 'em', 'strong', 'br'];
+    // Only allow safe formatting tags (b, i, em, strong, br)
     const tagPattern = /<(?!\/?(?:b|i|em|strong|br)\b)[^>]*>/gi;
     sanitized = sanitized.replace(tagPattern, '');
   }

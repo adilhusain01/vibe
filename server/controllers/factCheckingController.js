@@ -172,20 +172,20 @@ const getTranscriptFromAPI = async (videoId) => {
   }
 };
 
-// Common fact check creation logic
-const createFactCheckLogic = async (factCheckData, creatorWallet, creatorName) => {
-  const factCheckId = generateGameId();
-
-  const factCheck = new FactCheck({
-    ...factCheckData,
-    factCheckId,
-    creatorWallet,
-    creatorName,
-  });
-
-  await factCheck.save();
-  return factCheck;
-};
+// Note: This function is currently unused but kept for potential future use
+// const createFactCheckLogic = async (factCheckData, creatorWallet, creatorName) => {
+//   const factCheckId = generateGameId();
+//
+//   const factCheck = new FactCheck({
+//     ...factCheckData,
+//     factCheckId,
+//     creatorWallet,
+//     creatorName,
+//   });
+//
+//   await factCheck.save();
+//   return factCheck;
+// };
 
 exports.createFactCheckByPrompt = async (req, res) => {
   try {

@@ -57,7 +57,7 @@ app.use(rateLimiters.general);
 app.get('/api/csrf-token', csrfTokenEndpoint);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
     res.json({
         status: 'OK',
         timestamp: new Date().toISOString(),
@@ -68,7 +68,7 @@ app.get('/health', (req, res) => {
 });
 
 // System stats endpoint (for monitoring)
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', (_req, res) => {
     res.json({
         cache: getCacheStats(),
         circuitBreakers: getCircuitBreakerStats(),
@@ -83,12 +83,12 @@ app.use("/api/fact-check", optionalCSRF, require("./routes/factCheckingRoutes"))
 app.use("/api/users", optionalCSRF, userRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
 
 // Global error handler
-app.use((error, req, res, next) => {
+app.use((error, _req, res, _next) => {
     console.error('Unhandled error:', error);
 
     // Don't leak error details in production

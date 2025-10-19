@@ -6,7 +6,7 @@ import axios from "../api/axios";
 import { ethers } from "ethers";
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
-import { sanitizeText, sanitizeFilename, sanitizeUrl, sanitizeGameId } from '../utils/sanitize';
+import { sanitizeFilename, sanitizeGameId } from '../utils/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -463,7 +463,7 @@ const QuizCreation = () => {
             signer
           );
 
-          rewards = rewards.map((reward) => reward / 1000000000000000000);
+          rewards = rewards.map((reward) => reward / 1e18);
           rewards = rewards.map((reward) =>
             ethers.utils.parseEther(reward.toString())
           );
