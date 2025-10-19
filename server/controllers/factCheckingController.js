@@ -553,8 +553,6 @@ exports.joinFactCheck = async (req, res) => {
 exports.getLeaderBoards = async (req, res) => {
   const { factCheckId } = req.params;
 
-  console.log(factCheckId);
-
   try {
     const factCheck = await FactCheck.findOne({ factCheckId });
     if (!factCheck)
@@ -562,15 +560,100 @@ exports.getLeaderBoards = async (req, res) => {
 
     const participants = await ParticipantFacts.find({ factCheckId });
 
-    res.status(200).json({ factCheck, participants });
+    const sortedParticipants = participants.sort((a, b) => {
+      return (b.score || 0) - (a.score || 0);
+    });
+
+    const leaderboardData = {
+      factCheck: {
+        _id: factCheck._id,
+        factCheckId: factCheck.factCheckId,
+        creatorName: factCheck.creatorName,
+        factsCount: factCheck.factsCount,
+        numParticipants: factCheck.numParticipants,
+        isPublic: factCheck.isPublic,
+        isFinished: factCheck.isFinished,
+      },
+      participants: sortedParticipants.map(p => ({
+        participantName: p.participantName,
+        walletAddress: p.walletAddress,
+        score: p.score || 0,
+        isCompleted: p.isCompleted || false,
+        reward: p.reward !== null ? p.reward.toString() : null,
+        createdAt: p.createdAt
+      }))
+    };
+
+    res.status(200).json(leaderboardData);
   } catch (err) {
     console.log(err);
     res.status(400).json({ error: err.message });
   }
 };
 
+exports.submitAnswer = async (req, res) => {
+  const { factCheckId, factId, answer, walletAddress } = req.body;
+
+  if (!factCheckId || !factId || !answer || !walletAddress) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const factCheck = await FactCheck.findOne({ factCheckId });
+    if (!factCheck) {
+      return res.status(404).json({ error: "Fact Check not found" });
+    }
+
+    if (factCheck.isFinished) {
+      return res.status(410).json({ error: "Fact Check has already ended" });
+    }
+
+    const participant = await ParticipantFacts.findOne({
+      factCheckId,
+      walletAddress,
+    });
+
+    if (!participant) {
+      return res.status(403).json({ error: "You have not joined this fact check" });
+    }
+
+    if (participant.isCompleted) {
+      return res.status(409).json({ error: "You have already completed this fact check" });
+    }
+
+    const fact = factCheck.facts.find(f => f._id.toString() === factId);
+    if (!fact) {
+      return res.status(404).json({ error: "Fact not found" });
+    }
+
+    const userAnswerBool = answer === "true";
+    const isCorrect = userAnswerBool === fact.isTrue;
+
+    if (isCorrect) {
+      participant.score = (participant.score || 0) + 1;
+    }
+
+    await participant.save();
+
+    // Invalidate cache to show real-time updates
+    invalidateCache.factCheck(factCheckId);
+    console.log(`🔄 Cache invalidated for fact check answer submission: ${factCheckId}`);
+
+    res.json({
+      success: true,
+      isCorrect,
+      score: participant.score,
+      correctAnswer: fact.isTrue
+    });
+
+  } catch (err) {
+    console.error("Answer submission error:", err);
+    res.status(500).json({ error: "Failed to submit answer" });
+  }
+};
+
 exports.submitFactCheck = async (req, res) => {
-  const { factCheckId, walletAddress, answers } = req.body;
+  const { factCheckId, walletAddress } = req.body;
 
   try {
     const factCheck = await FactCheck.findOne({ factCheckId });
@@ -588,17 +671,11 @@ exports.submitFactCheck = async (req, res) => {
         .json({ error: "You have not joined this fact check." });
     }
 
-    let score = 0;
-    factCheck.facts.forEach((fact) => {
-      const userAnswer = answers[fact._id];
-      const userAnswerBool = userAnswer === "true";
-      if (userAnswerBool === fact.isTrue) {
-        score++;
-      }
-    });
+    // No need to recalculate score - use the already calculated score from individual answers
+    const finalScore = participant.score || 0;
 
-    const totalReward = score * factCheck.rewardPerScore;
-    participant.score = score;
+    const totalReward = finalScore * factCheck.rewardPerScore;
+    participant.isCompleted = true;
     participant.reward = totalReward;
     await participant.save();
 

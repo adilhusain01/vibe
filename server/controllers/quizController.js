@@ -687,6 +687,77 @@ exports.joinQuiz = async (req, res) => {
 };
 
 
+exports.submitAnswer = async (req, res) => {
+  const { quizId, questionId, answer, walletAddress } = req.body;
+
+  if (!quizId || !questionId || !answer || !walletAddress) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const quiz = await Quiz.findOne({ quizId })
+      .populate('participants.user', 'walletAddress');
+
+    if (!quiz) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    if (quiz.isFinished) {
+      return res.status(410).json({ error: "Quiz has already ended" });
+    }
+
+    const participantIndex = quiz.participants.findIndex(
+      p => p.user && p.user.walletAddress === walletAddress
+    );
+
+    if (participantIndex === -1) {
+      return res.status(403).json({ error: "You have not joined this quiz" });
+    }
+
+    const participant = quiz.participants[participantIndex];
+
+    if (participant.isCompleted) {
+      return res.status(409).json({ error: "You have already completed this quiz" });
+    }
+
+    const question = quiz.questions.find(q => q._id.toString() === questionId);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    let userAnswerLetter;
+    if (/^[0-3]$/.test(answer)) {
+      const indexToLetter = ["A", "B", "C", "D"];
+      userAnswerLetter = indexToLetter[parseInt(answer)];
+    } else {
+      userAnswerLetter = answer.toString().toUpperCase();
+    }
+
+    const isCorrect = userAnswerLetter === question.correctAnswer.toUpperCase();
+
+    if (isCorrect) {
+      participant.score = (participant.score || 0) + 1;
+    }
+
+    await quiz.save();
+
+    // Invalidate cache to show real-time updates
+    invalidateCache.quiz(quizId);
+    console.log(`🔄 Cache invalidated for quiz answer submission: ${quizId}`);
+
+    res.json({
+      success: true,
+      isCorrect,
+      score: participant.score,
+      correctAnswer: question.correctAnswer
+    });
+
+  } catch (err) {
+    console.error("Answer submission error:", err);
+    res.status(500).json({ error: "Failed to submit answer" });
+  }
+};
+
 exports.getLeaderBoards = async (req, res) => {
   const { quizId } = req.params;
 
@@ -699,7 +770,9 @@ exports.getLeaderBoards = async (req, res) => {
     if (!quiz) return res.status(404).json({ error: "Quiz not found" });
 
 
-    const sortedParticipants = quiz.participants.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    const sortedParticipants = quiz.participants.sort((a, b) => {
+      return (b.score || 0) - (a.score || 0);
+    });
 
 
     const leaderboardData = {
@@ -717,9 +790,10 @@ exports.getLeaderBoards = async (req, res) => {
          user: p.user ? {
             name: p.user.name || 'Unnamed Participant',
             walletAddress: p.user.walletAddress
-         } : { name: 'Loading...', walletAddress: '...' }, 
-         score: p.score,
-         reward: p.reward !== null ? p.reward.toString() : null, 
+         } : { name: 'Loading...', walletAddress: '...' },
+         score: p.score || 0,
+         isCompleted: p.isCompleted || false,
+         reward: p.reward !== null ? p.reward.toString() : null,
          joinedAt: p.joinedAt
       }))
     };
@@ -735,10 +809,10 @@ exports.getLeaderBoards = async (req, res) => {
 };
 
 exports.submitQuiz = async (req, res) => {
-  const { quizId, walletAddress, answers } = req.body; 
+  const { quizId, walletAddress } = req.body;
 
-  if (!quizId || !walletAddress || !answers) {
-      return res.status(400).json({ error: "Missing quizId, walletAddress, or answers." });
+  if (!quizId || !walletAddress) {
+      return res.status(400).json({ error: "Missing quizId or walletAddress." });
   }
 
   try {
@@ -758,41 +832,18 @@ exports.submitQuiz = async (req, res) => {
     }
 
 
-    if (quiz.participants[participantIndex].score !== null) {
+    if (quiz.participants[participantIndex].isCompleted) {
         return res.status(409).json({ error: "You have already submitted answers for this quiz." });
     }
 
-
-    const indexToLetter = ["A", "B", "C", "D"];
-    let score = 0;
-
-    quiz.questions.forEach((question) => {
-       const questionIdStr = question._id.toString();
-       const userAnswer = answers[questionIdStr];
-
-       if (userAnswer !== undefined && userAnswer !== null && userAnswer !== "no_answer") {
-          let userAnswerLetter;
-
-          // Handle numeric indices ("0", "1", "2", "3")
-          if (/^[0-3]$/.test(userAnswer)) {
-             userAnswerLetter = indexToLetter[parseInt(userAnswer)];
-          } else {
-             // Handle letter answers directly ("A", "B", "C", "D")
-             userAnswerLetter = userAnswer.toString().toUpperCase();
-          }
-
-          if (userAnswerLetter === question.correctAnswer.toUpperCase()) {
-             score++;
-          }
-       }
-    });
-
+    // No need to recalculate score - use the already calculated score from individual answers
+    const finalScore = quiz.participants[participantIndex].score || 0;
 
     const rewardPerScoreWei = BigInt(quiz.rewardPerScore || 0);
-    const totalRewardWei = BigInt(score) * rewardPerScoreWei;
+    const totalRewardWei = BigInt(finalScore) * rewardPerScoreWei;
 
-
-    quiz.participants[participantIndex].score = score;
+    // Mark as completed and set reward
+    quiz.participants[participantIndex].isCompleted = true;
     quiz.participants[participantIndex].reward = Number(totalRewardWei); 
 
 
@@ -805,7 +856,7 @@ exports.submitQuiz = async (req, res) => {
     res.status(200).json({
         message: "Quiz submitted successfully!",
         quizId: quiz.quizId,
-        score: score,
+        score: finalScore,
         reward: totalRewardWei > 0 ? totalRewardWei.toString() : null
     });
 

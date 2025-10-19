@@ -10,6 +10,7 @@ const {
   createQuizByVideo,
   joinQuiz,
   submitQuiz,
+  submitAnswer,
   getLeaderBoards,
   updateQuiz,
 } = require('../controllers/quizController');
@@ -23,7 +24,6 @@ const {
   validateWalletAddressEnhanced,
   validateURL,
   validateGameId,
-  validateAnswers,
   sanitizeInput,
   CONTENT_LIMITS
 } = require("../middleware/validation");
@@ -110,10 +110,15 @@ router.post('/join/:quizId',
   joinQuiz
 );
 
+router.post('/answer',
+  rateLimiters.general,
+  validateWalletAddressEnhanced,
+  submitAnswer
+);
+
 router.post('/submit',
   rateLimiters.general,
   validateWalletAddressEnhanced,
-  validateAnswers,
   submitQuiz
 );
 

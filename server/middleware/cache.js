@@ -130,8 +130,8 @@ const cacheFactCheck = (ttlSeconds = 300) => {
 // Cache middleware for leaderboard data
 const cacheLeaderboard = (ttlSeconds = 60) => { // Shorter TTL for dynamic data
     return (req, res, next) => {
-        const { quizId, id } = req.params;
-        const gameId = quizId || id;
+        const { quizId, id, factCheckId } = req.params;
+        const gameId = quizId || id || factCheckId;
         const cacheKey = `leaderboard:${gameId}`;
 
         if (leaderboardCache.has(cacheKey)) {

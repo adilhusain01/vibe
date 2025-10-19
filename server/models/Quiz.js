@@ -32,9 +32,13 @@ const quizSchema = new mongoose.Schema({
         ref: 'User',
         required: true
       },
-      score: { 
+      score: {
         type: Number,
-        default: null
+        default: 0
+      },
+      isCompleted: {
+        type: Boolean,
+        default: false
       },
       reward: { 
         type: Number,

@@ -27,14 +27,25 @@ const FactCheckLeaderBoards = () => {
                 console.log(response.data);
             } catch (error) {
                 console.log(error);
-                toast.error("Failed to fetch leaderboard data");
+                if (loading) {
+                    toast.error("Failed to fetch leaderboard data");
+                }
             } finally {
                 setLoading(false);
             }
         };
 
+        // Initial fetch
         fetchLeaderBoards();
-    }, [id]);
+
+        // Set up polling for real-time updates every 3 seconds
+        const interval = setInterval(() => {
+            fetchLeaderBoards();
+        }, 3000);
+
+        // Cleanup interval on unmount
+        return () => clearInterval(interval);
+    }, [id, loading]);
 
     const handleSortChange = (e) => {
         setSortOption(e.target.value);
@@ -56,7 +67,9 @@ const FactCheckLeaderBoards = () => {
 
     const sortedParticipants = [...participants].sort((a, b) => {
         if (sortOption === "name") {
-            return a.participantName.localeCompare(b.participantName);
+            const nameA = a.user?.name || a.participantName || 'Unknown';
+            const nameB = b.user?.name || b.participantName || 'Unknown';
+            return nameA.localeCompare(nameB);
         } else if (sortOption === "score") {
             return b.score - a.score;
         }
@@ -100,6 +113,10 @@ const FactCheckLeaderBoards = () => {
                             #{id}
                         </span>
                     </h1>
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span className="text-sm text-gray-300">Live Updates</span>
+                    </div>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20 shadow-xl space-y-6">
@@ -112,7 +129,7 @@ const FactCheckLeaderBoards = () => {
                                 <span className="text-sm font-medium">Facts</span>
                             </div>
                             <p className="text-xl md:text-2xl font-bold text-red-400 md:mt-2">
-                                {factCheck.facts.length}
+                                {factCheck?.facts?.length || 0}
                             </p>
                         </div>
 
@@ -123,7 +140,7 @@ const FactCheckLeaderBoards = () => {
                                 <span className="text-sm font-medium">Participants</span>
                             </div>
                             <p className="text-xl md:text-2xl font-bold text-red-400 md:mt-2">
-                                {participants.length}
+                                {participants?.length || 0}
                             </p>
                         </div>
 
@@ -186,11 +203,21 @@ const FactCheckLeaderBoards = () => {
                                         <span className="text-white text-sm md:text-base">
                                             {participant.participantName}
                                         </span>
+                                        {participant.isCompleted && (
+                                            <span className="text-green-400 text-xs">✓ Completed</span>
+                                        )}
                                     </div>
                                 </div>
-                                <span className="text-pink-400 font-bold text-sm md:text-base">
-                                    {participant.score}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`font-bold text-sm md:text-base ${
+                                        participant.isCompleted ? 'text-green-400' : 'text-yellow-400'
+                                    }`}>
+                                        {participant.score}
+                                    </span>
+                                    {!participant.isCompleted && (
+                                        <span className="text-xs text-gray-400">Live</span>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>

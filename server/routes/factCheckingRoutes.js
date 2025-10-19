@@ -11,10 +11,11 @@ const {
   joinFactCheck,
   getLeaderBoards,
   submitFactCheck,
+  submitAnswer,
 } = require("../controllers/factCheckingController");
 
 const rateLimiters = require("../middleware/rateLimiter");
-const { cacheQuiz, cacheLeaderboard } = require("../middleware/cache");
+const { cacheFactCheck, cacheLeaderboard } = require("../middleware/cache");
 const {
   validateFileUpload,
   validateContentLength,
@@ -22,7 +23,6 @@ const {
   validateWalletAddressEnhanced,
   validateURL,
   validateGameId,
-  validateAnswers,
   sanitizeInput,
   CONTENT_LIMITS
 } = require("../middleware/validation");
@@ -55,7 +55,7 @@ router.post("/verify/:factCheckId",
   rateLimiters.general,
   validateGameId,
   validateWalletAddressEnhanced,
-  cacheQuiz(300), // Cache for 5 minutes
+  cacheFactCheck(300), // Cache for 5 minutes
   getFactCheck
 );
 
@@ -109,10 +109,15 @@ router.post("/join/:factCheckId",
   joinFactCheck
 );
 
+router.post("/answer",
+  rateLimiters.general,
+  validateWalletAddressEnhanced,
+  submitAnswer
+);
+
 router.post("/submit",
   rateLimiters.general,
   validateWalletAddressEnhanced,
-  validateAnswers,
   submitFactCheck
 );
 

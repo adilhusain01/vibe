@@ -30,12 +30,30 @@ const Quiz = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizEnded, setQuizEnded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingAnswer, setIsProcessingAnswer] = useState(false);
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     let isCancelled = false;
+
+    // Reset all state when quiz ID changes
+    setQuiz(null);
+    setQuizCreator("");
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setParticipantName("");
+    setNameDialogOpen(true);
+    setTimer(30);
+    setUserJoined(false);
+    setQuizStarted(false);
+    setQuizEnded(false);
+    setIsSubmitting(false);
+    setIsProcessingAnswer(false);
+    setError("");
+    setMessage("");
+    setLoading(true);
 
     const fetchQuiz = async () => {
       // Only proceed if we have authentication and wallet address
@@ -94,11 +112,78 @@ const Quiz = () => {
 
   useEffect(() => {
     let interval;
-    if (quizStarted && !isSubmitting && !quizEnded && userJoined) {
+    if (quizStarted && !isSubmitting && !isProcessingAnswer && !quizEnded && userJoined) {
       interval = setInterval(() => {
         setTimer((prevTimer) => {
           if (prevTimer <= 1) {
-            handleNextQuestion();
+            // Handle timer expiry inline to avoid circular dependency
+            setTimeout(() => {
+              // Prevent race condition by checking flags
+              setIsProcessingAnswer(prev => {
+                if (prev) return prev; // Already processing, abort
+
+                if (quiz && quiz.questions) {
+                  const currentQuestion = quiz.questions[currentQuestionIndex];
+                  if (currentQuestion) {
+                    let finalAnswer = answers[currentQuestion._id];
+
+                    if (!finalAnswer) {
+                      finalAnswer = "no_answer";
+                      setAnswers(prevAnswers => ({
+                        ...prevAnswers,
+                        [currentQuestion._id]: "no_answer",
+                      }));
+                    }
+
+                    // Submit current answer and handle next step
+                    const handleTimerExpiry = async () => {
+                      try {
+                        // Submit current answer
+                        if (finalAnswer && finalAnswer !== "no_answer") {
+                          await axios.post('/api/quiz/answer', {
+                            quizId: id,
+                            questionId: currentQuestion._id,
+                            answer: finalAnswer,
+                            walletAddress
+                          });
+                        }
+
+                        // Move to next question or submit quiz
+                        if (currentQuestionIndex < (quiz?.questions?.length || 0) - 1) {
+                          setCurrentQuestionIndex(prev => prev + 1);
+                          setTimer(30);
+                          setIsProcessingAnswer(false);
+                        } else {
+                          // Final submission
+                          setIsSubmitting(true);
+                          try {
+                            await axios.post("/api/quiz/submit", {
+                              quizId: id,
+                              walletAddress,
+                            });
+                            toast.success("Quiz score submitted successfully!");
+                            navigate(`/leaderboards/${id}`);
+                          } catch (err) {
+                            console.error(err);
+                            toast.error("An error occurred while submitting the quiz.");
+                          } finally {
+                            setIsSubmitting(false);
+                            setIsProcessingAnswer(false);
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error in timer expiry:', error);
+                        setIsProcessingAnswer(false);
+                      }
+                    };
+
+                    handleTimerExpiry();
+                    return true; // Set processing flag
+                  }
+                }
+                return false; // No processing needed
+              });
+            }, 0);
             return 30;
           }
           return prevTimer - 1;
@@ -107,31 +192,93 @@ const Quiz = () => {
     }
 
     return () => clearInterval(interval);
-  }, [quizStarted, currentQuestionIndex, isSubmitting, quizEnded, userJoined]);
+  }, [quizStarted, currentQuestionIndex, isSubmitting, isProcessingAnswer, quizEnded, userJoined, quiz, answers, id, walletAddress, navigate]);
 
   const handleAnswerChange = (questionId, answer) => {
-    if (isSubmitting || !userJoined) return; // Prevent answer changes during submission
+    if (isSubmitting || !userJoined) return;
+
+    // Only update local state - don't submit yet
     setAnswers({
       ...answers,
       [questionId]: answer,
     });
   };
 
-  const handleNextQuestion = () => {
-    if (isSubmitting || !userJoined) return;
-
-    const currentQuestion = quiz.questions[currentQuestionIndex];
-    if (!answers[currentQuestion._id]) {
-      setAnswers({
-        ...answers,
-        [currentQuestion._id]: "no_answer",
-      });
+  const submitCurrentAnswer = async (questionId, answer) => {
+    // Submit answer to update real-time score
+    if (answer && answer !== "no_answer") {
+      try {
+        await axios.post('/api/quiz/answer', {
+          quizId: id,
+          questionId,
+          answer,
+          walletAddress
+        });
+      } catch (error) {
+        console.error('Error submitting answer:', error);
+      }
     }
-    setTimer(30);
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      handleSubmitQuiz();
+  };
+
+  const handleNextQuestion = async () => {
+    if (isSubmitting || isProcessingAnswer || !userJoined) return;
+
+    // Set processing flag to prevent race condition
+    setIsProcessingAnswer(true);
+
+    try {
+      const currentQuestion = quiz.questions[currentQuestionIndex];
+      let finalAnswer = answers[currentQuestion._id];
+
+      // Only set "no_answer" if no answer was selected for this question
+      if (!finalAnswer) {
+        finalAnswer = "no_answer";
+        setAnswers(prevAnswers => ({
+          ...prevAnswers,
+          [currentQuestion._id]: "no_answer",
+        }));
+      }
+
+      // Submit the current answer for real-time scoring
+      await submitCurrentAnswer(currentQuestion._id, finalAnswer);
+
+      setTimer(30);
+      if (currentQuestionIndex < (quiz?.questions?.length || 0) - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setIsProcessingAnswer(false);
+      } else {
+        // Final submission
+        setIsSubmitting(true);
+        try {
+          await axios.post(
+            "/api/quiz/submit",
+            {
+              quizId: id,
+              walletAddress,
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          toast.success("Quiz score submitted successfully!");
+          navigate(`/leaderboards/${id}`);
+        } catch (err) {
+          console.error(err);
+          toast.error(
+            err.response?.data?.error ||
+              "An error occurred while submitting the quiz."
+          );
+        } finally {
+          setIsSubmitting(false);
+          setIsProcessingAnswer(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleNextQuestion:', error);
+      setIsProcessingAnswer(false);
     }
   };
 
@@ -162,38 +309,6 @@ const Quiz = () => {
     }
   };
 
-  const handleSubmitQuiz = async () => {
-    setIsSubmitting(true);
-    try {
-      // 1. First, submit quiz answers to API
-      await axios.post(
-        "/api/quiz/submit",
-        {
-          quizId: id,
-          walletAddress,
-          answers,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      toast.success("Quiz score submitted successfully!");
-
-      // Navigate to leaderboards
-      navigate(`/leaderboards/${id}`);
-    } catch (err) {
-      console.error(err);
-      toast.error(
-        err.response?.data?.error ||
-          "An error occurred while submitting the quiz."
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const loadAllQuizzes = async () => {
     // This function appears to be a placeholder
@@ -414,14 +529,14 @@ const Quiz = () => {
                   <div className="flex justify-end">
                     <button
                       onClick={handleNextQuestion}
-                      disabled={!answers[currentQuestion._id]}
+                      disabled={!answers[currentQuestion._id] || isProcessingAnswer}
                       className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl font-medium transition-all ${
-                        answers[currentQuestion._id]
+                        answers[currentQuestion._id] && !isProcessingAnswer
                           ? "bg-gradient-to-r from-red-500 to-pink-500 text-white hover:opacity-90"
                           : "bg-white/10 text-white/50 cursor-not-allowed"
                       }`}
                     >
-                      {currentQuestionIndex < quiz.questions.length - 1
+                      {currentQuestionIndex < (quiz?.questions?.length || 0) - 1
                         ? "Next Question"
                         : "Submit Quiz"}
                       <ArrowRight size={20} />

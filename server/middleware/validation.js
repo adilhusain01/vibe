@@ -284,31 +284,23 @@ const validateTextContent = (field, maxLength = 1000) => {
 const validateAnswers = (req, res, next) => {
     const { answers } = req.body;
 
-    console.log('=== DEBUGGING ANSWERS VALIDATION ===');
-    console.log('Received answers:', JSON.stringify(answers, null, 2));
-
     if (!answers || typeof answers !== 'object') {
         return res.status(400).json({ error: 'Answers must be an object' });
     }
 
     // Validate each answer
     for (const [questionId, answer] of Object.entries(answers)) {
-        console.log(`Validating: questionId="${questionId}", answer="${answer}", type=${typeof answer}`);
-
         // Validate question ID format
         if (!/^[a-fA-F0-9]{24}$/.test(questionId)) {
-            console.log(`Invalid question ID format: ${questionId}`);
             return res.status(400).json({ error: 'Invalid question ID format' });
         }
 
         // Validate answer value
         if (!['true', 'false', 'A', 'B', 'C', 'D', '0', '1', '2', '3', 'no_answer'].includes(answer)) {
-            console.log(`Invalid answer format: "${answer}" not in allowed values`);
             return res.status(400).json({ error: 'Invalid answer format' });
         }
     }
 
-    console.log('=== ANSWERS VALIDATION PASSED ===');
     next();
 };
 

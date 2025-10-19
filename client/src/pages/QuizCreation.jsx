@@ -271,8 +271,9 @@ const QuizCreation = () => {
       const signer = await getContractSigner();
       const currentBalance = await signer.getBalance();
 
-      // Convert simple cost to Wei for comparison
-      const requiredAmountInWei = ethers.utils.parseUnits(costValidation.totalCost.toString(), 18);
+      // Convert simple cost to Wei for comparison (round to 18 decimal places max)
+      const totalCostRounded = parseFloat(costValidation.totalCost.toFixed(18));
+      const requiredAmountInWei = ethers.utils.parseUnits(totalCostRounded.toString(), 18);
 
       if (currentBalance.lt(requiredAmountInWei)) {
         const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
@@ -286,8 +287,9 @@ const QuizCreation = () => {
     }
 
     // Calculate costs for server (maintaining backward compatibility)
+    const rewardPerScoreRounded = parseFloat(parseFloat(rewardPerScore).toFixed(18));
     const rewardPerScoreInWei = ethers.utils.parseUnits(
-      rewardPerScore.toString(),
+      rewardPerScoreRounded.toString(),
       18
     );
     const totalCost = rewardPerScoreInWei
@@ -505,7 +507,8 @@ const QuizCreation = () => {
   useEffect(() => {
     if (quizCreated && quizId) {
       fetchParticipants();
-      const interval = setInterval(fetchParticipants, 1000);
+      // Poll for live updates every 3 seconds
+      const interval = setInterval(fetchParticipants, 3000);
       return () => clearInterval(interval);
     }
   }, [quizId, quizCreated]);
@@ -800,18 +803,36 @@ const QuizCreation = () => {
               </div>
 
               <div className="space-y-4">
-                <h2 className="text-xl md:text-2xl font-bold text-white text-center">
-                  Participants
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-white">
+                    Participants
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-gray-300">Live Updates</span>
+                  </div>
+                </div>
                 <div className="bg-white/10 rounded-xl p-4 max-h-[300px] overflow-y-auto">
                   {participants.map((participant) => (
                     <div
-                      key={participant.walletAddress}
+                      key={participant.user.walletAddress}
                       className="flex justify-between items-center py-2 px-4 border-b border-white/10 text-white"
                     >
-                      <span>{participant.user.name}</span>
-                      <span className="font-mono">
-                        {participant.score !== null ? participant.score : "N/A"}
+                      <span className="flex items-center gap-2">
+                        {participant.user.name}
+                        {participant.isCompleted && (
+                          <span className="text-green-400 text-sm">✓ Completed</span>
+                        )}
+                      </span>
+                      <span className="font-mono flex items-center gap-2">
+                        {participant.isCompleted ? (
+                          <span className="text-green-400">{participant.score}</span>
+                        ) : (
+                          <span className="text-yellow-400">{participant.score}</span>
+                        )}
+                        {!participant.isCompleted && (
+                          <span className="text-xs text-gray-400">Live</span>
+                        )}
                       </span>
                     </div>
                   ))}

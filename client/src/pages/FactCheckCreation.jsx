@@ -7,6 +7,7 @@ import { ethers } from "ethers";
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
 import { sanitizeFilename, sanitizeGameId } from '../utils/sanitize';
+import FactCheckCostDisplay from '../components/FactCheckCostDisplay';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,10 @@ const FactCheckCreation = () => {
   const qrRef = useRef();
   const fileInputRef = useRef();
   const [factCheckCreated, setFactCheckCreated] = useState(false);
+  const [costValidation, setCostValidation] = useState({
+    isValid: true,
+    totalCost: 0
+  });
   const baseUrl = import.meta.env.VITE_CLIENT_URI;
   const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 
@@ -192,6 +197,11 @@ const FactCheckCreation = () => {
     }
   };
 
+  // Handle cost calculation updates
+  const handleCostCalculated = (costInfo) => {
+    setCostValidation(costInfo);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -252,8 +262,7 @@ const FactCheckCreation = () => {
     }
 
     // ⚠️ CRITICAL: Check balance BEFORE creating fact check on server
-    const simpleCost = numParticipants * factsCount * rewardPerScore;
-    if (simpleCost === 0) {
+    if (costValidation.totalCost === 0) {
       toast.error("Please fill in all required fields to calculate cost");
       return;
     }
@@ -263,8 +272,9 @@ const FactCheckCreation = () => {
       const signer = await getContractSigner();
       const currentBalance = await signer.getBalance();
 
-      // Convert simple cost to Wei for comparison
-      const requiredAmountInWei = ethers.utils.parseUnits(simpleCost.toString(), 18);
+      // Convert simple cost to Wei for comparison (round to 18 decimal places max)
+      const totalCostRounded = parseFloat(costValidation.totalCost.toFixed(18));
+      const requiredAmountInWei = ethers.utils.parseUnits(totalCostRounded.toString(), 18);
 
       if (currentBalance.lt(requiredAmountInWei)) {
         const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
@@ -508,7 +518,8 @@ const FactCheckCreation = () => {
   useEffect(() => {
     if (factCheckCreated && factCheckId) {
       fetchParticipants();
-      const interval = setInterval(fetchParticipants, 1000);
+      // Poll for live updates every 3 seconds
+      const interval = setInterval(fetchParticipants, 3000);
       return () => clearInterval(interval);
     }
   }, [factCheckId, factCheckCreated]);
@@ -731,9 +742,18 @@ const FactCheckCreation = () => {
 
               {renderTypeSpecificFields()}
 
+              {/* Cost Display Component */}
+              <FactCheckCostDisplay
+                numParticipants={formData.numParticipants}
+                factsCount={formData.factsCount}
+                rewardPerScore={formData.rewardPerScore}
+                onCostCalculated={handleCostCalculated}
+                disabled={loading}
+              />
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !costValidation.isValid}
                 className="w-full px-6 py-3 md:py-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg md:rounded-xl text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
@@ -741,7 +761,7 @@ const FactCheckCreation = () => {
                 ) : (
                   <>
                     <IconComponent size={20} />
-                    Create Game
+                    {costValidation.isValid ? 'Create Fact Check' : 'Insufficient Balance'}
                   </>
                 )}
               </button>
@@ -801,18 +821,36 @@ const FactCheckCreation = () => {
               </div>
 
               <div className="space-y-4">
-                <h2 className="text-xl md:text-2xl font-bold text-white text-center">
-                  Participants
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-white">
+                    Participants
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-gray-300">Live Updates</span>
+                  </div>
+                </div>
                 <div className="bg-white/10 rounded-xl p-4 max-h-[300px] overflow-y-auto">
                   {participants.map((participant) => (
                     <div
                       key={participant.walletAddress}
                       className="flex justify-between items-center py-2 px-4 border-b border-white/10 text-white"
                     >
-                      <span>{participant.participantName}</span>
-                      <span className="font-mono">
-                        {participant.score !== null ? participant.score : "N/A"}
+                      <span className="flex items-center gap-2">
+                        {participant.participantName}
+                        {participant.isCompleted && (
+                          <span className="text-green-400 text-sm">✓ Completed</span>
+                        )}
+                      </span>
+                      <span className="font-mono flex items-center gap-2">
+                        {participant.isCompleted ? (
+                          <span className="text-green-400">{participant.score}</span>
+                        ) : (
+                          <span className="text-yellow-400">{participant.score}</span>
+                        )}
+                        {!participant.isCompleted && (
+                          <span className="text-xs text-gray-400">Live</span>
+                        )}
                       </span>
                     </div>
                   ))}

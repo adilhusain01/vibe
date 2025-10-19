@@ -30,12 +30,30 @@ const FactCheck = () => {
     const [factCheckStarted, setFactCheckStarted] = useState(false);
     const [factCheckEnded, setFactCheckEnded] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isProcessingAnswer, setIsProcessingAnswer] = useState(false);
     const navigate = useNavigate();
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
     useEffect(() => {
         let isCancelled = false;
+
+        // Reset all state when fact-check ID changes
+        setFactCheck(null);
+        setFactCheckCreator("");
+        setCurrentFactIndex(0);
+        setAnswers({});
+        setParticipantName("");
+        setNameDialogOpen(true);
+        setTimer(30);
+        setUserJoined(false);
+        setFactCheckStarted(false);
+        setFactCheckEnded(false);
+        setIsSubmitting(false);
+        setIsProcessingAnswer(false);
+        setError("");
+        setMessage("");
+        setLoading(true);
 
         const fetchFactCheck = async () => {
             // Only proceed if we have authentication and wallet address
@@ -94,11 +112,78 @@ const FactCheck = () => {
 
     useEffect(() => {
         let interval;
-        if (factCheckStarted && !isSubmitting && !factCheckEnded && userJoined) {
+        if (factCheckStarted && !isSubmitting && !isProcessingAnswer && !factCheckEnded && userJoined) {
             interval = setInterval(() => {
                 setTimer((prevTimer) => {
                     if (prevTimer <= 1) {
-                        handleNextFact();
+                        // Handle timer expiry inline to avoid circular dependency
+                        setTimeout(() => {
+                            // Prevent race condition by checking flags
+                            setIsProcessingAnswer(prev => {
+                                if (prev) return prev; // Already processing, abort
+
+                                if (factCheck && factCheck.facts) {
+                                    const currentFact = factCheck.facts[currentFactIndex];
+                                    if (currentFact) {
+                                        let finalAnswer = answers[currentFact._id];
+
+                                        if (!finalAnswer) {
+                                            finalAnswer = "no_answer";
+                                            setAnswers(prevAnswers => ({
+                                                ...prevAnswers,
+                                                [currentFact._id]: "no_answer",
+                                            }));
+                                        }
+
+                                        // Submit current answer and handle next step
+                                        const handleTimerExpiry = async () => {
+                                            try {
+                                                // Submit current answer
+                                                if (finalAnswer && finalAnswer !== "no_answer") {
+                                                    await axios.post('/api/fact-check/answer', {
+                                                        factCheckId: id,
+                                                        factId: currentFact._id,
+                                                        answer: finalAnswer,
+                                                        walletAddress
+                                                    });
+                                                }
+
+                                                // Move to next fact or submit fact check
+                                                if (currentFactIndex < (factCheck?.facts?.length || 0) - 1) {
+                                                    setCurrentFactIndex(prev => prev + 1);
+                                                    setTimer(30);
+                                                    setIsProcessingAnswer(false);
+                                                } else {
+                                                    // Final submission
+                                                    setIsSubmitting(true);
+                                                    try {
+                                                        await axios.post("/api/fact-check/submit", {
+                                                            factCheckId: id,
+                                                            walletAddress,
+                                                        });
+                                                        toast.success("Fact check score submitted successfully!");
+                                                        navigate(`/fact-check-leaderboards/${id}`);
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        toast.error("An error occurred while submitting the fact check.");
+                                                    } finally {
+                                                        setIsSubmitting(false);
+                                                        setIsProcessingAnswer(false);
+                                                    }
+                                                }
+                                            } catch (error) {
+                                                console.error('Error in timer expiry:', error);
+                                                setIsProcessingAnswer(false);
+                                            }
+                                        };
+
+                                        handleTimerExpiry();
+                                        return true; // Set processing flag
+                                    }
+                                }
+                                return false; // No processing needed
+                            });
+                        }, 0);
                         return 30;
                     }
                     return prevTimer - 1;
@@ -107,37 +192,93 @@ const FactCheck = () => {
         }
 
         return () => clearInterval(interval);
-    }, [
-        factCheckStarted,
-        currentFactIndex,
-        isSubmitting,
-        factCheckEnded,
-        userJoined,
-    ]);
+    }, [factCheckStarted, currentFactIndex, isSubmitting, isProcessingAnswer, factCheckEnded, userJoined, factCheck, answers, id, walletAddress, navigate]);
 
     const handleAnswerChange = (factId, answer) => {
-        if (isSubmitting || !userJoined) return; // Prevent answer changes during submission
+        if (isSubmitting || !userJoined) return;
+
+        // Only update local state - don't submit yet
         setAnswers({
             ...answers,
             [factId]: answer,
         });
     };
 
-    const handleNextFact = () => {
-        if (isSubmitting || !userJoined) return;
-
-        const currentFact = factCheck.facts[currentFactIndex];
-        if (!answers[currentFact._id]) {
-            setAnswers({
-                ...answers,
-                [currentFact._id]: "no_answer",
-            });
+    const submitCurrentAnswer = async (factId, answer) => {
+        // Submit answer to update real-time score
+        if (answer && answer !== "no_answer") {
+            try {
+                await axios.post('/api/fact-check/answer', {
+                    factCheckId: id,
+                    factId,
+                    answer,
+                    walletAddress
+                });
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+            }
         }
-        setTimer(30);
-        if (currentFactIndex < factCheck.facts.length - 1) {
-            setCurrentFactIndex(currentFactIndex + 1);
-        } else {
-            handleSubmitFactCheck();
+    };
+
+    const handleNextFact = async () => {
+        if (isSubmitting || isProcessingAnswer || !userJoined) return;
+
+        // Set processing flag to prevent race condition
+        setIsProcessingAnswer(true);
+
+        try {
+            const currentFact = factCheck.facts[currentFactIndex];
+            let finalAnswer = answers[currentFact._id];
+
+            // Only set "no_answer" if no answer was selected for this fact
+            if (!finalAnswer) {
+                finalAnswer = "no_answer";
+                setAnswers(prevAnswers => ({
+                    ...prevAnswers,
+                    [currentFact._id]: "no_answer",
+                }));
+            }
+
+            // Submit the current answer for real-time scoring
+            await submitCurrentAnswer(currentFact._id, finalAnswer);
+
+            setTimer(30);
+            if (currentFactIndex < (factCheck?.facts?.length || 0) - 1) {
+                setCurrentFactIndex(currentFactIndex + 1);
+                setIsProcessingAnswer(false);
+            } else {
+                // Final submission
+                setIsSubmitting(true);
+                try {
+                    await axios.post(
+                        "/api/fact-check/submit",
+                        {
+                            factCheckId: id,
+                            walletAddress,
+                        },
+                        {
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    toast.success("Fact check score submitted successfully!");
+                    navigate(`/fact-check-leaderboards/${id}`);
+                } catch (err) {
+                    console.error(err);
+                    toast.error(
+                        err.response?.data?.error ||
+                        "An error occurred while submitting the fact check."
+                    );
+                } finally {
+                    setIsSubmitting(false);
+                    setIsProcessingAnswer(false);
+                }
+            }
+        } catch (error) {
+            console.error('Error in handleNextFact:', error);
+            setIsProcessingAnswer(false);
         }
     };
 
@@ -169,38 +310,6 @@ const FactCheck = () => {
         }
     };
 
-    const handleSubmitFactCheck = async () => {
-        setIsSubmitting(true);
-        try {
-            // 1. First, submit fact check answers to API
-            const factCheckSubmissionResponse = await axios.post(
-                "/api/fact-check/submit",
-                {
-                    factCheckId: id,
-                    walletAddress,
-                    answers,
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            toast.success("Fact check score submitted successfully!");
-
-            // 8. Navigate to leaderboards
-            navigate(`/fact-check-leaderboards/${id}`);
-        } catch (err) {
-            console.error(err);
-            toast.error(
-                err.response?.data?.error ||
-                "An error occurred while submitting the fact check."
-            );
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const loadAllFactChecks = async () => {
         // This function appears to be a placeholder
@@ -418,14 +527,14 @@ const FactCheck = () => {
                                     <div className="flex justify-end">
                                         <button
                                             onClick={handleNextFact}
-                                            disabled={!answers[currentFact._id]}
+                                            disabled={!answers[currentFact._id] || isProcessingAnswer}
                                             className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl font-medium transition-all ${
-                                                answers[currentFact._id]
+                                                answers[currentFact._id] && !isProcessingAnswer
                                                     ? "bg-gradient-to-r from-red-500 to-pink-500 text-white hover:opacity-90"
                                                     : "bg-white/10 text-white/50 cursor-not-allowed"
                                             }`}
                                         >
-                                            {currentFactIndex < factCheck.facts.length - 1
+                                            {currentFactIndex < (factCheck?.facts?.length || 0) - 1
                                                 ? "Next Fact"
                                                 : "Submit Fact Check"}
                                             <ArrowRight size={20} />
