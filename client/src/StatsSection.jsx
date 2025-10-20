@@ -18,7 +18,7 @@ const StatsSection = () => {
       color: 'from-red-500 to-pink-500',
     },
     {
-      label: 'Quizzes Created',
+      label: 'Games Created',
       value: '0.2K+',
       icon: BookCheck,
       description: 'Diverse learning materials',
@@ -39,7 +39,7 @@ const StatsSection = () => {
       color: 'from-green-500 to-teal-500',
     },
     {
-      label: 'Daily Quizzes',
+      label: 'Daily Games',
       value: '50+',
       icon: Target,
       description: 'New content every day',
@@ -66,7 +66,7 @@ const StatsSection = () => {
           Platform Statistics
         </h2>
         <p className='text-base md:text-lg lg:text-xl text-red-200'>
-          Empowering learning through interactive quizzes
+          Empowering learning through interactive games
         </p>
       </motion.div>
 
