@@ -106,8 +106,8 @@ const validateNumbers = (fields) => {
                 numParticipants: 1000,
                 questionCount: 50,
                 factsCount: 50,
-                rewardPerScore: 1e21, // 1000 tokens in Wei (1000 * 10^18)
-                totalCost: 1e24, // 1M tokens in Wei (1000000 * 10^18)
+                rewardPerScore: 1e30, // Very high limit - essentially unlimited (1 billion tokens)
+                totalCost: 1e33, // Very high limit - essentially unlimited (1 trillion tokens)
             };
 
             if (limits[field] && num > limits[field]) {

@@ -8,12 +8,20 @@ const QuizCostDisplay = ({
   onCostCalculated,
   disabled = false
 }) => {
-  const totalCost = useMemo(() => {
+  const rewardCost = useMemo(() => {
     if (!numParticipants || !questionCount || !rewardPerScore) {
       return 0;
     }
     return numParticipants * questionCount * rewardPerScore;
   }, [numParticipants, questionCount, rewardPerScore]);
+
+  const platformFee = useMemo(() => {
+    return rewardCost * 0.05; // 5% platform fee
+  }, [rewardCost]);
+
+  const totalCost = useMemo(() => {
+    return rewardCost + platformFee;
+  }, [rewardCost, platformFee]);
 
   useEffect(() => {
     if (onCostCalculated) {
@@ -56,6 +64,25 @@ const QuizCostDisplay = ({
 
         <div className="border-t border-white/10"></div>
 
+        {/* Reward Cost */}
+        <div className="flex justify-between items-center">
+          <span className="text-white/70 text-sm">Participant Rewards</span>
+          <span className="text-white/70 font-mono text-sm">
+            {rewardCost.toFixed(4)} STT
+          </span>
+        </div>
+
+        {/* Platform Fee */}
+        <div className="flex justify-between items-center">
+          <span className="text-white/70 text-sm">Platform Fee (5%)</span>
+          <span className="text-white/70 font-mono text-sm">
+            {platformFee.toFixed(4)} STT
+          </span>
+        </div>
+
+        <div className="border-t border-white/10"></div>
+
+        {/* Total Cost */}
         <div className="flex justify-between items-center">
           <span className="text-white font-semibold text-sm md:text-base">Total Quiz Cost</span>
           <span className="text-white font-mono font-bold text-base md:text-lg">
