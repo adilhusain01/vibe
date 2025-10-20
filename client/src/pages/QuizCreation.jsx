@@ -4,6 +4,7 @@ import { usePrivyAuth } from "../context/PrivyAuthContext";
 import toast from "react-hot-toast";
 import axios from "../api/axios";
 import { ethers } from "ethers";
+import { getCurrentCurrency } from '../utils/networks';
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
 import { sanitizeFilename, sanitizeGameId } from '../utils/sanitize';
@@ -277,7 +278,7 @@ const QuizCreation = () => {
 
       if (currentBalance.lt(requiredAmountInWei)) {
         const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
-        toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
+        toast.error(`Insufficient balance. You need ${shortfall} more ${getCurrentCurrency()} tokens.`);
         return;
       }
     } catch (balanceError) {
@@ -344,7 +345,7 @@ const QuizCreation = () => {
         const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI.abi, signer);
         const budget = ethers.BigNumber.from(totalCost.toString());
 
-        console.log('🔥 Creating game with budget:', ethers.utils.formatEther(budget), 'STT');
+        console.log('🔥 Creating game with budget:', ethers.utils.formatEther(budget), getCurrentCurrency());
 
         const tx = await contract.createGame({ value: budget });
         const receipt = await tx.wait();

@@ -4,6 +4,7 @@ import { usePrivyAuth } from "../context/PrivyAuthContext";
 import toast from "react-hot-toast";
 import axios from "../api/axios";
 import { ethers } from "ethers";
+import { getCurrentCurrency } from '../utils/networks';
 import { QRCodeSVG } from "qrcode.react";
 import ABI from "../utils/abi.json";
 import { sanitizeFilename, sanitizeGameId } from '../utils/sanitize';
@@ -278,7 +279,7 @@ const FactCheckCreation = () => {
 
       if (currentBalance.lt(requiredAmountInWei)) {
         const shortfall = ethers.utils.formatEther(requiredAmountInWei.sub(currentBalance));
-        toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
+        toast.error(`Insufficient balance. You need ${shortfall} more ${getCurrentCurrency()} tokens.`);
         return;
       }
     } catch (balanceError) {
@@ -342,12 +343,12 @@ const FactCheckCreation = () => {
         const balance = await signer.getBalance();
         const requiredAmount = ethers.BigNumber.from(totalCost.toString());
 
-        console.log('💰 Wallet balance:', ethers.utils.formatEther(balance), 'STT');
-        console.log('💸 Required amount:', ethers.utils.formatEther(requiredAmount), 'STT');
+        console.log('💰 Wallet balance:', ethers.utils.formatEther(balance), getCurrentCurrency());
+        console.log('💸 Required amount:', ethers.utils.formatEther(requiredAmount), getCurrentCurrency());
 
         if (balance.lt(requiredAmount)) {
           const shortfall = ethers.utils.formatEther(requiredAmount.sub(balance));
-          toast.error(`Insufficient balance. You need ${shortfall} more STT tokens.`);
+          toast.error(`Insufficient balance. You need ${shortfall} more ${getCurrentCurrency()} tokens.`);
           setLoading(false);
           return;
         }

@@ -3,6 +3,7 @@ import { usePrivyAuth } from "../context/PrivyAuthContext";
 import { usePrivy } from '@privy-io/react-auth';
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
+import { getCurrentCurrency } from '../utils/networks';
 import ConnectWallet from "../components/ConnectWallet";
 import {
   Dialog,
@@ -41,9 +42,9 @@ const Profile = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [privateKey, setPrivateKey] = useState("");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  const currentCurrency = getCurrentCurrency();
 
   useEffect(() => {
     if (authenticated && walletAddress) {
@@ -274,7 +275,7 @@ const Profile = () => {
                   <div>
                     <label className="text-red-200 text-xs font-medium">Network</label>
                     <input
-                      value="Somnia Testnet"
+                      value={network || "Unknown Network"}
                       readOnly
                       className="w-full px-2 md:px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs mt-1"
                     />
@@ -316,7 +317,7 @@ const Profile = () => {
                   {loading ? (
                     <CircularProgress size={18} style={{ color: 'white' }} />
                   ) : (
-                    `${parseFloat(balance).toFixed(4)} STT`
+                    `${parseFloat(balance).toFixed(4)} ${currentCurrency}`
                   )}
                 </p>
               </div>
@@ -370,15 +371,15 @@ const Profile = () => {
         >
           <DialogTitle className="text-white flex items-center gap-2 text-lg md:text-xl px-4 md:px-6 py-3 md:py-4">
             <Send className="w-5 h-5 md:w-6 md:h-6" />
-            Withdraw STT Tokens
+            {`Withdraw ${currentCurrency} Tokens`}
           </DialogTitle>
           <DialogContent className="space-y-4 md:space-y-6 px-4 md:px-6">
             <p className="text-red-200 text-xs md:text-sm">
-              Send your STT tokens to an external wallet address
+              {`Send your ${currentCurrency} tokens to an external wallet address`}
             </p>
 
             <div className="space-y-3 md:space-y-4">
-              <label className="text-white text-xs md:text-sm font-medium">Amount (STT)</label>
+              <label className="text-white text-xs md:text-sm font-medium">Amount ({currentCurrency})</label>
 
               {/* Amount Input */}
               <input
@@ -409,12 +410,12 @@ const Profile = () => {
 
                 {/* Slider Labels */}
                 <div className="flex justify-between text-xs text-red-200">
-                  <span className="hidden sm:inline">0 STT</span>
+                  <span className="hidden sm:inline">0 {currentCurrency}</span>
                   <span className="sm:hidden">0</span>
                   <span className="font-medium text-center px-2">
-                    {withdrawAmount ? `${parseFloat(withdrawAmount).toFixed(4)} STT` : '0.0000 STT'}
+                    {withdrawAmount ? `${parseFloat(withdrawAmount).toFixed(4)} ${currentCurrency}` : `0.0000 ${currentCurrency}`}
                   </span>
-                  <span className="hidden sm:inline">{parseFloat(balance).toFixed(4)} STT</span>
+                  <span className="hidden sm:inline">{parseFloat(balance).toFixed(4)} {currentCurrency}</span>
                   <span className="sm:hidden">{parseFloat(balance).toFixed(2)}</span>
                 </div>
               </div>
@@ -451,7 +452,7 @@ const Profile = () => {
                 </button>
               </div>
 
-              <p className="text-red-200 text-xs">Available: {parseFloat(balance).toFixed(4)} STT</p>
+              <p className="text-red-200 text-xs">Available: {parseFloat(balance).toFixed(4)} {currentCurrency}</p>
             </div>
 
             <div className="space-y-2">

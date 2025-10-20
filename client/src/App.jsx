@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { PrivyProvider } from '@privy-io/react-auth';
 import PrivyAuthProvider from "./context/PrivyAuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { getNetworkConfig } from './utils/networks';
 
 const Layout = lazy(() => import("./components/Layout"));
 const Home = lazy(() => import("./pages/Home"));
@@ -22,6 +23,27 @@ const Profile = lazy(() => import("./pages/Profile"));
 import LoadingSpinner from "./components/LoadingSpinner";
 
 const App = () => {
+  // Get network configuration based on environment
+  const networkConfig = getNetworkConfig();
+
+  // Convert network config to Privy format
+  const privyChainConfig = {
+    id: parseInt(networkConfig.chainId, 16),
+    name: networkConfig.chainName,
+    nativeCurrency: networkConfig.nativeCurrency,
+    rpcUrls: {
+      default: {
+        http: networkConfig.rpcUrls
+      }
+    },
+    blockExplorers: {
+      default: {
+        name: "Network Explorer",
+        url: networkConfig.blockExplorerUrls[0]
+      }
+    }
+  };
+
   return (
     <PrivyProvider
       appId={import.meta.env.VITE_PRIVY_APP_ID}
@@ -58,48 +80,8 @@ const App = () => {
         "mfa": {
           "noPromptOnMfaRequired": false
         },
-        "supportedChains": [
-          {
-            "id": 50312,
-            "name": "Somnia Testnet",
-            "nativeCurrency": {
-              "name": "STT",
-              "symbol": "STT",
-              "decimals": 18
-            },
-            "rpcUrls": {
-              "default": {
-                "http": ["https://dream-rpc.somnia.network"]
-              }
-            },
-            "blockExplorers": {
-              "default": {
-                "name": "Somnia Explorer",
-                "url": "https://dream-rpc.somnia.network"
-              }
-            }
-          }
-        ],
-        "defaultChain": {
-          "id": 50312,
-          "name": "Somnia Testnet",
-          "nativeCurrency": {
-            "name": "STT",
-            "symbol": "STT",
-            "decimals": 18
-          },
-          "rpcUrls": {
-            "default": {
-              "http": ["https://dream-rpc.somnia.network"]
-            }
-          },
-          "blockExplorers": {
-            "default": {
-              "name": "Somnia Explorer",
-              "url": "https://dream-rpc.somnia.network"
-            }
-          }
-        }
+        "supportedChains": [privyChainConfig],
+        "defaultChain": privyChainConfig
       }}
     >
       <ErrorBoundary>

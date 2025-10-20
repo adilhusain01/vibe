@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 // import { ethers } from 'ethers';
-import { networks } from '../utils/networks';
+import { networks, getNetworkConfig } from '../utils/networks';
 
 export const WalletContext = createContext();
 
@@ -23,6 +23,17 @@ const WalletProvider = ({ children }) => {
         const account = accounts[0];
         setWalletAddress(account);
         localStorage.setItem('walletAddress', account);
+
+        // Check and set network after connecting
+        const chainId = await ethereum.request({ method: 'eth_chainId' });
+        const networkName = networks[chainId] || 'Unknown Network';
+        setNetwork(networkName);
+
+        // Check if user is on the correct network for the environment
+        const networkConfig = getNetworkConfig();
+        if (chainId !== networkConfig.chainId) {
+          console.log(`Expected network: ${networkConfig.chainName}, Current: ${networkName}`);
+        }
       }
     } catch (error) {
       console.error('Error connecting wallet:', error);
@@ -49,15 +60,23 @@ const WalletProvider = ({ children }) => {
       const chainId = await ethereum.request({ method: 'eth_chainId' });
       const networkName = networks[chainId] || 'Unknown Network';
       setNetwork(networkName);
+
+      // Check if user is on the correct network for the environment
+      const networkConfig = getNetworkConfig();
+      if (chainId !== networkConfig.chainId) {
+        console.log(`Expected network: ${networkConfig.chainName}, Current: ${networkName}`);
+      }
     }
   };
 
   const switchNetwork = async () => {
     if (window.ethereum) {
       try {
+        const networkConfig = getNetworkConfig();
+
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0xc488' }], 
+          params: [{ chainId: networkConfig.chainId }],
         });
 
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -68,25 +87,14 @@ const WalletProvider = ({ children }) => {
           setWalletAddress(accounts[0]);
           localStorage.setItem('walletAddress', accounts[0]);
         }
-        
+
       } catch (error) {
         if (error.code === 4902) {
           try {
+            const networkConfig = getNetworkConfig();
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
-              params: [
-                {
-                  chainId: '0xc488',
-                  chainName: 'Somnia Testnet',
-                  rpcUrls: ['https://dream-rpc.somnia.network'], 
-                  nativeCurrency: {
-                    name: 'STT',
-                    symbol: 'STT',
-                    decimals: 18,
-                  },
-                  blockExplorerUrls: ['https://shannon-explorer.somnia.network/'],
-                },
-              ],
+              params: [networkConfig],
             });
           } catch (addError) {
             console.error('Error adding Ethereum chain:', addError);

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
+import { getNetworkConfig } from '../utils/networks';
 
 export const PrivyAuthContext = createContext();
 
@@ -28,7 +29,7 @@ const PrivyAuthProvider = ({ children }) => {
 
   const { wallets } = useWallets();
   const [walletAddress, setWalletAddress] = useState(null);
-  const [network, setNetwork] = useState('Somnia Testnet');
+  const [network, setNetwork] = useState(() => getNetworkConfig().chainName);
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
 

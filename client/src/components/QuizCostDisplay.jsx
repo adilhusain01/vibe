@@ -1,5 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { DollarSign } from 'lucide-react';
+import { getCurrentCurrency } from '../utils/networks';
 
 const QuizCostDisplay = ({
   numParticipants,
@@ -51,14 +52,14 @@ const QuizCostDisplay = ({
           <div className="text-white/70 text-xs leading-relaxed">
             <div>{numParticipants} participants</div>
             <div>× {questionCount} questions</div>
-            <div>× {rewardPerScore} STT</div>
+            <div>× {rewardPerScore} {getCurrentCurrency()}</div>
           </div>
         </div>
 
         {/* Desktop: Show calculation inline */}
         <div className="hidden md:flex justify-between items-center text-sm">
           <span className="text-white/70">
-            {numParticipants} participants × {questionCount} questions × {rewardPerScore} STT
+            {numParticipants} participants × {questionCount} questions × {rewardPerScore} {getCurrentCurrency()}
           </span>
         </div>
 
@@ -68,7 +69,7 @@ const QuizCostDisplay = ({
         <div className="flex justify-between items-center">
           <span className="text-white/70 text-sm">Participant Rewards</span>
           <span className="text-white/70 font-mono text-sm">
-            {rewardCost.toFixed(4)} STT
+            {rewardCost.toFixed(4)} {getCurrentCurrency()}
           </span>
         </div>
 
@@ -76,7 +77,7 @@ const QuizCostDisplay = ({
         <div className="flex justify-between items-center">
           <span className="text-white/70 text-sm">Platform Fee (5%)</span>
           <span className="text-white/70 font-mono text-sm">
-            {platformFee.toFixed(4)} STT
+            {platformFee.toFixed(4)} {getCurrentCurrency()}
           </span>
         </div>
 
@@ -86,7 +87,7 @@ const QuizCostDisplay = ({
         <div className="flex justify-between items-center">
           <span className="text-white font-semibold text-sm md:text-base">Total Quiz Cost</span>
           <span className="text-white font-mono font-bold text-base md:text-lg">
-            {totalCost.toFixed(4)} STT
+            {totalCost.toFixed(4)} {getCurrentCurrency()}
           </span>
         </div>
       </div>
