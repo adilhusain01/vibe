@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+*.swp
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+.output/
+.vercel/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
+# Environment (commit .env.example only)
+.env
+.env.*
+!.env.example

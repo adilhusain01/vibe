@@ -80,3 +80,39 @@ Transform how Web3 communities engage, learn, and distribute value - making ever
 ## Mainnet Deployed Contract Address
 
 0x69579be58808F847a103479Bb023E9c457127369
+---
+
+## Getting Started (local development)
+
+**Prerequisites:** Node.js 18+, npm, and a MongoDB connection string.
+
+```bash
+git clone git@github.com:adilhusain01/vibe.git
+cd vibe
+```
+
+### Server (`server/`, Express, default port 5000)
+
+```bash
+cd server
+npm install
+cp .env.example .env   # GEMINI_API_KEY, PORT, MONGO_URI, YOUTUBE_API_KEY, FIRECRAWL_API_KEY, SUPADATA_API_KEY
+npm run dev            # nodemon; `npm start` for plain node
+```
+
+Health check: `http://localhost:5000/health`. Request logs are written to `server/logs/` (created automatically, git-ignored).
+
+### Client (`client/`, React + Vite)
+
+```bash
+cd client
+npm install
+cp .env.example .env   # VITE_SERVER_URI (e.g. http://localhost:5000), VITE_CLIENT_URI, VITE_CONTRACT_ADDRESS, VITE_PRIVY_APP_ID, ...
+npm run dev            # http://localhost:5173
+```
+
+Other client scripts: `npm run build`, `npm run preview`, `npm run lint`.
+
+### Smart contracts (`contracts/`)
+
+`contracts/VIBE.sol` and `contracts/NFT.sol` are standalone Solidity files (no Hardhat/Foundry project). Deploy with Remix or similar; the mainnet address is listed above.
